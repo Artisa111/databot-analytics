@@ -2,6 +2,11 @@ import streamlit as st
 import sys 
 import os 
  
-st.title("DataBot Analytics") 
-st.write("Welcome to DataBot Analytics!") 
-st.write("This is a Telegram bot with web interface for data analytics.") 
+# Add current directory to Python path 
+sys.path.append(os.path.dirname(os.path.abspath(__file__))) 
+ 
+# Import and run the main app 
+try: 
+    exec(open('app.py').read()) 
+except Exception as e: 
+    st.error(f"Error loading app: {e}") 
