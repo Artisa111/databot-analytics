@@ -1,3 +1,4 @@
+st.warning("?? Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
