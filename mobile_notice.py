@@ -1,4 +1,5 @@
 import streamlit as st 
+ 
 st.markdown("### ?? Mobile Users Notice") 
 st.error("?? Streamlit Cloud limitation: File upload doesn't work on mobile browsers") 
 st.success("? Solution: Use our Telegram bot for mobile analysis!") 
