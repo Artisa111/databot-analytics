@@ -5,4 +5,8 @@ __pycache__/
 *.log
 .DS_Store
 venv/
-env/
+env/# Version files 
+*.0 
+*.db 
+__pycache__/ 
+*.pyc 
