@@ -1,3 +1,4 @@
+import mobile_notice 
 import streamlit as st 
 import sys 
 import os 
