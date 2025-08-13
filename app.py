@@ -1,7 +1,6 @@
 st.warning("⚠️ Mobile Version Notice: Streamlit doesn't support large file uploads on mobile browsers. Please use desktop version or try our Telegram bot for better experience!") 
 st.warning("⚠️ Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
 import streamlit as st
-import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -911,6 +910,96 @@ def show_charts():
         else:
             st.warning("Need categorical and numeric columns")
     
+    elif chart_type == "🌐 3D Scatter Plot" and len(numeric_cols) >= 3:
+        st.markdown("### 🌐 3D Scatter Plot")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            x_col = st.selectbox("X-axis", numeric_cols, key="3d_x")
+        with col2:
+            y_col = st.selectbox("Y-axis", [col for col in numeric_cols if col != x_col], key="3d_y")
+        with col3:
+            z_col = st.selectbox("Z-axis", [col for col in numeric_cols if col not in [x_col, y_col]], key="3d_z")
+        with col4:
+            color_col = st.selectbox("Color by", ["None"] + text_cols, key="3d_color")
+        
+        # Create 3D scatter plot
+        fig = go.Figure()
+        
+        if color_col == "None":
+            fig.add_trace(go.Scatter3d(
+                x=df[x_col],
+                y=df[y_col],
+                z=df[z_col],
+                mode='markers',
+                marker=dict(
+                    size=5,
+                    color=df[z_col],
+                    colorscale='Viridis',
+                    colorbar=dict(title=z_col),
+                    opacity=0.8
+                ),
+                text=[f'{x_col}: {x}<br>{y_col}: {y}<br>{z_col}: {z}' 
+                      for x, y, z in zip(df[x_col], df[y_col], df[z_col])],
+                hovertemplate='%{text}<extra></extra>'
+            ))
+        else:
+            for category in df[color_col].unique():
+                mask = df[color_col] == category
+                fig.add_trace(go.Scatter3d(
+                    x=df[mask][x_col],
+                    y=df[mask][y_col],
+                    z=df[mask][z_col],
+                    mode='markers',
+                    name=str(category),
+                    marker=dict(size=5, opacity=0.8),
+                    text=[f'{x_col}: {x}<br>{y_col}: {y}<br>{z_col}: {z}<br>{color_col}: {c}' 
+                          for x, y, z, c in zip(df[mask][x_col], df[mask][y_col], 
+                                               df[mask][z_col], df[mask][color_col])],
+                    hovertemplate='%{text}<extra></extra>'
+                ))
+        
+        fig.update_layout(
+            title=f"3D Scatter Plot: {x_col} vs {y_col} vs {z_col}",
+            scene=dict(
+                xaxis_title=x_col,
+                yaxis_title=y_col,
+                zaxis_title=z_col,
+                camera=dict(
+                    eye=dict(x=1.2, y=1.2, z=1.2)
+                )
+            ),
+            width=800,
+            height=600
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 3D correlation analysis
+        st.markdown("#### 🔗 3D Correlation Analysis")
+        correlations_3d = {
+            f"{x_col} - {y_col}": df[x_col].corr(df[y_col]),
+            f"{x_col} - {z_col}": df[x_col].corr(df[z_col]),
+            f"{y_col} - {z_col}": df[y_col].corr(df[z_col])
+        }
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(f"{x_col} ↔ {y_col}", f"{correlations_3d[f'{x_col} - {y_col}']:.3f}")
+        with col2:
+            st.metric(f"{x_col} ↔ {z_col}", f"{correlations_3d[f'{x_col} - {z_col}']:.3f}")
+        with col3:
+            st.metric(f"{y_col} ↔ {z_col}", f"{correlations_3d[f'{y_col} - {z_col}']:.3f}")
+        
+        # 3D insights
+        max_corr_3d = max(abs(corr) for corr in correlations_3d.values())
+        if max_corr_3d > 0.7:
+            st.success(f"🔗 Strong 3D relationships detected! Max correlation: {max_corr_3d:.3f}")
+        elif max_corr_3d > 0.5:
+            st.info(f"📊 Moderate 3D relationships found. Max correlation: {max_corr_3d:.3f}")
+        else:
+            st.warning(f"📉 Weak 3D relationships. Max correlation: {max_corr_3d:.3f}")
+    
     elif chart_type == "🔵 Scatter Plot" and len(numeric_cols) >= 2:
         st.markdown("### 🔵 Scatter Plot")
         
@@ -1708,19 +1797,41 @@ def show_ab_testing():
                 treatment_std = treatment.std()
                 
                 # Statistical tests
-                # T-test
+                # T-test (Welch's t-test for unequal variances)
                 t_stat, p_value_ttest = stats.ttest_ind(control, treatment, equal_var=False)
                 
                 # Mann-Whitney U test (non-parametric)
-                u_stat, p_value_mannwhitney = stats.mannwhitneyu(control, treatment, alternative='two-sided')
+                try:
+                    u_stat, p_value_mannwhitney = stats.mannwhitneyu(control, treatment, alternative='two-sided')
+                except Exception as e:
+                    st.warning(f"Mann-Whitney test failed: {e}")
+                    p_value_mannwhitney = np.nan
                 
                 # Effect (difference of means)
                 effect = treatment_mean - control_mean
                 effect_pct = (effect / control_mean) * 100 if control_mean != 0 else 0
                 
-                # Cohen's d (effect size)
+                # Cohen's d (effect size) - corrected calculation
                 pooled_std = np.sqrt(((len(control) - 1) * control_std**2 + (len(treatment) - 1) * treatment_std**2) / (len(control) + len(treatment) - 2))
                 cohens_d = effect / pooled_std if pooled_std != 0 else 0
+                
+                # Confidence interval for the difference
+                se_diff = np.sqrt(control_std**2/len(control) + treatment_std**2/len(treatment))
+                ci_lower = effect - 1.96 * se_diff
+                ci_upper = effect + 1.96 * se_diff
+                
+                # Statistical power calculation
+                from scipy.stats import norm
+                pooled_se = np.sqrt(control_std**2/len(control) + treatment_std**2/len(treatment))
+                z_score = abs(effect) / pooled_se if pooled_se != 0 else 0
+                current_power = 1 - norm.cdf(1.96 - z_score) + norm.cdf(-1.96 - z_score) if pooled_se != 0 else 0
+                
+                # Sample size for 80% power
+                if control_std > 0 and treatment_std > 0:
+                    pooled_variance = (control_std**2 + treatment_std**2) / 2
+                    n_per_group_80 = 2 * pooled_variance * ((1.96 + 0.84)**2) / (effect**2) if effect != 0 else np.inf
+                else:
+                    n_per_group_80 = np.inf
                 
                 # Display results
                 st.markdown("### 📊 A/B Test Results")
@@ -1738,39 +1849,65 @@ def show_ab_testing():
                     st.metric("Change %", f"{effect_pct:+.2f}%")
                 
                 # Statistical significance
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
                     st.metric("P-value (t-test)", f"{p_value_ttest:.4f}")
                 with col2:
-                    st.metric("P-value (Mann-Whitney)", f"{p_value_mannwhitney:.4f}")
+                    if not np.isnan(p_value_mannwhitney):
+                        st.metric("P-value (Mann-Whitney)", f"{p_value_mannwhitney:.4f}")
+                    else:
+                        st.metric("P-value (Mann-Whitney)", "N/A")
                 with col3:
                     st.metric("Cohen's d", f"{cohens_d:.3f}")
+                with col4:
+                    st.metric("95% CI", f"[{ci_lower:.3f}, {ci_upper:.3f}]")
                 
                 # Results interpretation
                 alpha = 0.05
                 
+                # Statistical significance
+                st.markdown("#### 📊 Statistical Significance")
                 if p_value_ttest < alpha:
-                    st.success("🎉 Statistically significant difference! (t-test)")
+                    st.success(f"🎉 **Statistically significant difference!** (t-test, p = {p_value_ttest:.4f})")
+                    if ci_lower > 0:
+                        st.info("✅ Confidence interval doesn't include 0 - effect is likely real")
+                    elif ci_upper < 0:
+                        st.info("✅ Confidence interval doesn't include 0 - effect is likely real")
                 else:
-                    st.warning("❌ Difference is not statistically significant (t-test)")
+                    st.warning(f"❌ **No statistically significant difference** (t-test, p = {p_value_ttest:.4f})")
+                    st.info("🔍 This could mean: no real effect, insufficient sample size, or high variability")
                 
-                if p_value_mannwhitney < alpha:
-                    st.success("🎉 Statistically significant difference! (Mann-Whitney)")
-                else:
-                    st.warning("❌ Difference is not statistically significant (Mann-Whitney)")
+                if not np.isnan(p_value_mannwhitney):
+                    if p_value_mannwhitney < alpha:
+                        st.success(f"🎉 **Mann-Whitney test also significant!** (p = {p_value_mannwhitney:.4f})")
+                    else:
+                        st.warning(f"❌ **Mann-Whitney test not significant** (p = {p_value_mannwhitney:.4f})")
                 
-                # Effect size
+                # Effect size interpretation
+                st.markdown("#### 📏 Effect Size Analysis")
                 if abs(cohens_d) < 0.2:
-                    effect_size = "small"
+                    effect_size = "negligible"
+                    effect_color = "🔵"
                 elif abs(cohens_d) < 0.5:
-                    effect_size = "medium"
+                    effect_size = "small"
+                    effect_color = "🟡"
                 elif abs(cohens_d) < 0.8:
-                    effect_size = "large"
+                    effect_size = "medium"
+                    effect_color = "🟠"
                 else:
-                    effect_size = "very large"
+                    effect_size = "large"
+                    effect_color = "🔴"
                 
-                st.info(f"📏 Effect size: {effect_size} (Cohen's d = {cohens_d:.3f})")
+                st.write(f"{effect_color} **Effect size: {effect_size}** (Cohen's d = {cohens_d:.3f})")
+                
+                # Practical significance
+                if abs(effect_pct) > 10:
+                    st.success(f"💰 **Practically significant**: {abs(effect_pct):.1f}% change")
+                elif abs(effect_pct) > 5:
+                    st.info(f"📊 **Moderate practical impact**: {abs(effect_pct):.1f}% change")
+                else:
+                    st.warning(f"📉 **Small practical impact**: {abs(effect_pct):.1f}% change")
                 
                 # Visualization
                 col1, col2 = st.columns(2)
@@ -1811,45 +1948,121 @@ def show_ab_testing():
                 # Statistical power and sample size
                 st.markdown("### 📈 Statistical Power Analysis")
                 
-                from scipy.stats import norm
+                power_col1, power_col2, power_col3 = st.columns(3)
                 
-                # Current power
-                pooled_se = np.sqrt(control_std**2/len(control) + treatment_std**2/len(treatment))
-                z_score = abs(effect) / pooled_se if pooled_se != 0 else 0
-                current_power = 1 - norm.cdf(1.96 - z_score) + norm.cdf(-1.96 - z_score)
+                with power_col1:
+                    st.metric("Current Power", f"{current_power:.3f}")
                 
-                st.metric("Statistical Power", f"{current_power:.3f}")
+                with power_col2:
+                    st.metric("Current Sample Size", f"{len(control) + len(treatment):,}")
                 
+                with power_col3:
+                    if n_per_group_80 != np.inf and n_per_group_80 > 0:
+                        st.metric("Sample Size for 80% Power", f"{int(n_per_group_80 * 2):,}")
+                    else:
+                        st.metric("Sample Size for 80% Power", "N/A")
+                
+                # Power interpretation
                 if current_power >= 0.8:
-                    st.success("✅ Sufficient statistical power (≥0.8)")
+                    st.success("✅ **Sufficient statistical power** (≥0.8)")
+                    st.write("Your test has enough power to detect meaningful differences")
+                elif current_power >= 0.5:
+                    st.warning("⚠️ **Moderate statistical power** (0.5-0.8)")
+                    st.write("Consider increasing sample size for more reliable results")
                 else:
-                    st.warning(f"⚠️ Low statistical power. Recommended ≥0.8")
+                    st.error("❌ **Low statistical power** (<0.5)")
+                    st.write("High risk of missing real effects (Type II error)")
+                
+                # Sample size recommendations
+                if n_per_group_80 != np.inf and n_per_group_80 > 0:
+                    current_total = len(control) + len(treatment)
+                    recommended_total = int(n_per_group_80 * 2)
+                    
+                    if current_total < recommended_total:
+                        additional_needed = recommended_total - current_total
+                        st.info(f"💡 **Recommendation**: Collect {additional_needed:,} more samples for 80% power")
+                    else:
+                        st.success("🎯 Your sample size exceeds the requirement for 80% power!")
                 
                 # Recommendations
-                st.markdown("### 💡 Recommendations")
+                st.markdown("### 💡 Recommendations & Conclusions")
                 
                 recommendations = []
                 
+                # Statistical significance + practical significance
                 if p_value_ttest < 0.05 and abs(effect_pct) > 5:
-                    recommendations.append("🎯 Result is statistically significant and practically important")
-                elif p_value_ttest < 0.05:
-                    recommendations.append("📊 Result is statistically significant, but effect is small")
-                elif abs(effect_pct) > 10:
-                    recommendations.append("📈 Large practical effect, but need larger sample size")
+                    recommendations.append("🎯 **Strong evidence for effect**: Both statistically and practically significant")
+                    recommendations.append("✅ **Action recommended**: Implement the tested change")
+                elif p_value_ttest < 0.05 and abs(effect_pct) <= 5:
+                    recommendations.append("📊 **Statistically significant but small effect**: Consider cost-benefit analysis")
+                    recommendations.append("🤔 **Decision needed**: Is small improvement worth implementation cost?")
+                elif p_value_ttest >= 0.05 and abs(effect_pct) > 10:
+                    recommendations.append("📈 **Large effect but not statistically significant**: Increase sample size")
+                    recommendations.append("🔄 **Action recommended**: Continue testing with more data")
                 else:
-                    recommendations.append("📋 No convincing evidence of effect")
+                    recommendations.append("📋 **No convincing evidence of effect**: Consider alternative approaches")
+                    recommendations.append("🔄 **Options**: Test different variants or longer duration")
                 
+                # Power-based recommendations
                 if current_power < 0.8:
-                    recommendations.append("📊 Increase sample size to improve power")
+                    recommendations.append("📊 **Increase statistical power**: Larger sample size needed for reliable conclusions")
                 
+                # Effect size recommendations
                 if abs(cohens_d) >= 0.5:
-                    recommendations.append("💪 Medium or large effect size")
+                    recommendations.append("💪 **Meaningful effect size detected**: Worth further investigation")
+                elif abs(cohens_d) < 0.2:
+                    recommendations.append("📉 **Very small effect**: Question if this change is worth pursuing")
                 
+                # Data quality recommendations
+                control_cv = (control_std / control_mean) * 100 if control_mean != 0 else 0
+                treatment_cv = (treatment_std / treatment_mean) * 100 if treatment_mean != 0 else 0
+                
+                if control_cv > 100 or treatment_cv > 100:
+                    recommendations.append("⚠️ **High variability detected**: Consider data cleaning or longer measurement period")
+                
+                # Display recommendations
                 for rec in recommendations:
                     st.write(f"• {rec}")
                 
+                # Summary conclusion
+                st.markdown("#### 🎯 Executive Summary")
+                
+                if p_value_ttest < 0.05 and abs(effect_pct) > 5 and current_power > 0.8:
+                    conclusion = "🟢 **STRONG POSITIVE RESULT**: Proceed with implementation"
+                elif p_value_ttest < 0.05 and abs(effect_pct) > 2:
+                    conclusion = "🟡 **MODERATE POSITIVE RESULT**: Consider implementation with monitoring"
+                elif p_value_ttest >= 0.05 and current_power > 0.8:
+                    conclusion = "🔴 **NO SIGNIFICANT EFFECT**: Do not implement this change"
+                else:
+                    conclusion = "🟡 **INCONCLUSIVE RESULT**: Need more data for reliable conclusion"
+                
+                st.write(conclusion)
+                
+                # Key metrics summary
+                summary_metrics = {
+                    "Control Mean": f"{control_mean:.3f}",
+                    "Treatment Mean": f"{treatment_mean:.3f}",
+                    "Difference": f"{effect:.3f}",
+                    "% Change": f"{effect_pct:+.2f}%",
+                    "P-value": f"{p_value_ttest:.4f}",
+                    "Effect Size": f"{cohens_d:.3f}",
+                    "Statistical Power": f"{current_power:.3f}",
+                    "Significance": "Yes" if p_value_ttest < 0.05 else "No"
+                }
+                
+                st.markdown("#### 📋 Key Metrics Summary")
+                summary_df = pd.DataFrame([
+                    {"Metric": k, "Value": v} for k, v in summary_metrics.items()
+                ])
+                st.dataframe(summary_df, use_container_width=True)
+                
         except Exception as e:
             st.error(f"⚠️ Error in A/B test analysis: {str(e)}")
+            st.info("💡 **Troubleshooting tips:**")
+            st.write("• Check that your group column has exactly 2 distinct values")
+            st.write("• Ensure your metric column contains numeric data")
+            st.write("• Verify there are no empty or invalid values")
+            st.write("• Try using demo A/B test data to test the functionality")
 
 def generate_ab_test_data():
     """Generate realistic A/B test data"""
@@ -1909,10 +2122,18 @@ def show_database():
                 
                 for uploaded_file in uploaded_files:
                     df = pd.read_csv(uploaded_file)
-                    table_name = uploaded_file.name.replace('.csv', '').replace(' ', '_').replace('-', '_').lower()
+                    # Clean table name more thoroughly
+                    table_name = uploaded_file.name.replace('.csv', '')
+                    # Remove all special characters and spaces
+                    table_name = ''.join(c.lower() if c.isalnum() else '_' for c in table_name)
+                    # Remove multiple underscores
+                    table_name = '_'.join(filter(None, table_name.split('_')))
+                    # Ensure it starts with letter
+                    if table_name and table_name[0].isdigit():
+                        table_name = 'table_' + table_name
                     
-                    # Clean table name from invalid characters
-                    table_name = ''.join(c for c in table_name if c.isalnum() or c == '_')
+                    if not table_name:
+                        table_name = f'uploaded_table_{len(loaded_tables)+1}'
                     
                     df.to_sql(table_name, conn, if_exists='replace', index=False)
                     loaded_tables.append(table_name)
@@ -1920,9 +2141,11 @@ def show_database():
                 
                 conn.close()
                 st.session_state.db_tables = loaded_tables
+                st.success(f"🎉 Successfully loaded {len(loaded_tables)} tables!")
                 
             except Exception as e:
                 st.error(f"Database loading error: {str(e)}")
+                st.info("💡 Try using simpler file names without special characters")
         
         # Create demo database
         if st.button("🎲 Create Demo DB"):
@@ -1936,41 +2159,83 @@ def show_database():
             try:
                 if os.path.exists('uploaded_data.db'):
                     conn = sqlite3.connect('uploaded_data.db')
+                    db_name = "uploaded_data.db"
                 else:
                     conn = sqlite3.connect('sample_data.db')
+                    db_name = "sample_data.db"
                 
+                # Get table list
                 tables_query = "SELECT name FROM sqlite_master WHERE type='table';"
                 tables_df = pd.read_sql_query(tables_query, conn)
                 
                 if not tables_df.empty:
-                    st.markdown("**Available tables:**")
+                    st.markdown(f"**Available tables in {db_name}:**")
+                    
                     for table in tables_df['name']:
-                        # Show table structure
-                        structure_query = f"PRAGMA table_info({table});"
-                        structure = pd.read_sql_query(structure_query, conn)
-                        columns = ", ".join(structure['name'].tolist())
-                        st.write(f"• **{table}**: {columns}")
+                        try:
+                            # Get table info safely
+                            structure_query = f"SELECT * FROM pragma_table_info('{table}');"
+                            structure = pd.read_sql_query(structure_query, conn)
+                            
+                            if not structure.empty:
+                                columns = ", ".join(structure['name'].tolist())
+                                row_count_query = f"SELECT COUNT(*) as count FROM `{table}`;"
+                                row_count = pd.read_sql_query(row_count_query, conn)['count'].iloc[0]
+                                st.write(f"• **{table}** ({row_count:,} rows): {columns}")
+                            else:
+                                st.write(f"• **{table}** (structure unavailable)")
+                                
+                        except Exception as e:
+                            st.write(f"• **{table}** (error reading structure: {str(e)[:50]}...)")
+                else:
+                    st.warning("No tables found in database")
                 
                 conn.close()
                 
             except Exception as e:
-                st.warning(f"Could not get table list: {e}")
+                st.warning(f"Could not connect to database: {e}")
+                st.info("💡 Try creating a demo database or uploading CSV files first")
+        else:
+            st.info("📂 No database found. Upload CSV files or create demo database first.")
         
         # SQL queries
         default_queries = {
-            "Show all data": "SELECT * FROM sales LIMIT 10;",
-            "Group by regions": "SELECT region, COUNT(*) as count, AVG(amount) as avg_amount FROM sales GROUP BY region;",
-            "Top-5 by amount": "SELECT * FROM sales ORDER BY amount DESC LIMIT 5;",
-            "Statistics by date": "SELECT DATE(date) as day, COUNT(*) as transactions, SUM(amount) as total FROM sales GROUP BY DATE(date) ORDER BY day;"
+            "Show all data": "SELECT * FROM {table_name} LIMIT 10;",
+            "Count records": "SELECT COUNT(*) as total_records FROM {table_name};",
+            "Show columns": "SELECT * FROM pragma_table_info('{table_name}');",
+            "Basic statistics": "SELECT COUNT(*) as records, COUNT(DISTINCT *) as unique_records FROM {table_name};"
         }
         
-        query_template = st.selectbox("Select query template", list(default_queries.keys()))
+        # Get available tables for query templates
+        available_tables = []
+        try:
+            if os.path.exists('uploaded_data.db'):
+                conn = sqlite3.connect('uploaded_data.db')
+                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
+                available_tables = tables_df['name'].tolist()
+                conn.close()
+            elif os.path.exists('sample_data.db'):
+                conn = sqlite3.connect('sample_data.db')
+                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
+                available_tables = tables_df['name'].tolist()
+                conn.close()
+        except:
+            pass
+        
+        if available_tables:
+            selected_table = st.selectbox("Select table for template", available_tables)
+            query_template = st.selectbox("Select query template", list(default_queries.keys()))
+            
+            # Replace table name in template
+            template_query = default_queries[query_template].replace('{table_name}', selected_table)
+        else:
+            template_query = "-- No tables available. Create demo DB or upload CSV files first.\nSELECT 'No tables found' as message;"
         
         sql_query = st.text_area(
             "SQL Query",
-            value=default_queries[query_template],
+            value=template_query,
             height=150,
-            help="Write your SQL query here"
+            help="Write your SQL query here. Available tables are shown above."
         )
         
         if st.button("▶️ Execute Query"):
@@ -1991,62 +2256,220 @@ def show_database():
     with col2:
         st.markdown("### 📊 Quick Queries")
         
-        # Predefined analytical queries
-        if st.button("💰 Total Sales"):
-            try:
-                query = "SELECT SUM(amount) as total_sales FROM sales;"
-                result = execute_sql_query(query)
-                if not result.empty:
-                    total = result.iloc[0, 0]
-                    st.metric("Total Sales", f"${total:,.2f}")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+        # Get available tables and their columns for smart queries
+        available_tables = []
+        table_schemas = {}
         
-        if st.button("👥 Customers by Region"):
-            try:
-                query = "SELECT region, COUNT(DISTINCT customer_id) as customers FROM sales GROUP BY region ORDER BY customers DESC;"
-                result = execute_sql_query(query)
-                if not result.empty:
-                    fig = px.bar(result, x='region', y='customers', 
-                               title="Customers by Region")
-                    st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+        try:
+            if os.path.exists('uploaded_data.db'):
+                conn = sqlite3.connect('uploaded_data.db')
+                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
+                available_tables = tables_df['name'].tolist()
+                
+                # Get schema for each table
+                for table in available_tables:
+                    try:
+                        schema_query = f"SELECT * FROM pragma_table_info('{table}');"
+                        schema_df = pd.read_sql_query(schema_query, conn)
+                        table_schemas[table] = {
+                            'columns': schema_df['name'].tolist(),
+                            'types': schema_df['type'].tolist()
+                        }
+                    except:
+                        pass
+                
+                conn.close()
+                
+            elif os.path.exists('sample_data.db'):
+                conn = sqlite3.connect('sample_data.db')
+                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
+                available_tables = tables_df['name'].tolist()
+                
+                # Get schema for sample tables
+                for table in available_tables:
+                    try:
+                        schema_query = f"SELECT * FROM pragma_table_info('{table}');"
+                        schema_df = pd.read_sql_query(schema_query, conn)
+                        table_schemas[table] = {
+                            'columns': schema_df['name'].tolist(),
+                            'types': schema_df['type'].tolist()
+                        }
+                    except:
+                        pass
+                
+                conn.close()
+        except:
+            pass
         
-        if st.button("📈 Sales by Day"):
-            try:
-                query = """
-                SELECT DATE(date) as day, 
-                       SUM(amount) as daily_sales,
-                       COUNT(*) as transactions 
-                FROM sales 
-                GROUP BY DATE(date) 
-                ORDER BY day;
-                """
-                result = execute_sql_query(query)
-                if not result.empty:
-                    fig = px.line(result, x='day', y='daily_sales', 
-                                title="Sales by Day")
-                    st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-        
-        if st.button("🔝 Top Products"):
-            try:
-                query = """
-                SELECT product_name, 
-                       SUM(amount) as total_revenue,
-                       COUNT(*) as sales_count
-                FROM sales 
-                GROUP BY product_name 
-                ORDER BY total_revenue DESC 
-                LIMIT 10;
-                """
-                result = execute_sql_query(query)
-                if not result.empty:
-                    st.dataframe(result)
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+        if available_tables:
+            selected_table_quick = st.selectbox("Select table for quick queries", available_tables, key="quick_table")
+            
+            if selected_table_quick in table_schemas:
+                columns = table_schemas[selected_table_quick]['columns']
+                
+                # Find numeric columns for aggregation
+                numeric_columns = []
+                text_columns = []
+                
+                try:
+                    if os.path.exists('uploaded_data.db'):
+                        conn = sqlite3.connect('uploaded_data.db')
+                    else:
+                        conn = sqlite3.connect('sample_data.db')
+                    
+                    sample_query = f"SELECT * FROM `{selected_table_quick}` LIMIT 1;"
+                    sample_df = pd.read_sql_query(sample_query, conn)
+                    
+                    for col in sample_df.columns:
+                        if sample_df[col].dtype in ['int64', 'float64']:
+                            numeric_columns.append(col)
+                        else:
+                            text_columns.append(col)
+                    
+                    conn.close()
+                except:
+                    numeric_columns = []
+                    text_columns = columns
+                
+                # Smart quick queries based on available columns
+                if st.button("📊 Table Summary"):
+                    try:
+                        query = f"SELECT COUNT(*) as total_records FROM `{selected_table_quick}`;"
+                        result = execute_sql_query(query)
+                        if not result.empty:
+                            total = result.iloc[0, 0]
+                            st.metric("Total Records", f"{total:,}")
+                        
+                        # Show first few rows
+                        preview_query = f"SELECT * FROM `{selected_table_quick}` LIMIT 5;"
+                        preview_result = execute_sql_query(preview_query)
+                        st.dataframe(preview_result)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if numeric_columns and st.button("💰 Numeric Summary"):
+                    try:
+                        # Create aggregation for all numeric columns
+                        agg_parts = []
+                        for col in numeric_columns[:5]:  # Limit to 5 columns
+                            agg_parts.extend([
+                                f"AVG(`{col}`) as avg_{col}",
+                                f"SUM(`{col}`) as sum_{col}",
+                                f"MAX(`{col}`) as max_{col}",
+                                f"MIN(`{col}`) as min_{col}"
+                            ])
+                        
+                        query = f"SELECT {', '.join(agg_parts)} FROM `{selected_table_quick}`;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            # Display metrics in a nice format
+                            for col in numeric_columns[:3]:  # Show top 3
+                                st.write(f"**{col}:**")
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    avg_val = result[f'avg_{col}'].iloc[0]
+                                    st.metric("Average", f"{avg_val:.2f}")
+                                with col2:
+                                    sum_val = result[f'sum_{col}'].iloc[0]
+                                    st.metric("Total", f"{sum_val:,.2f}")
+                                with col3:
+                                    max_val = result[f'max_{col}'].iloc[0]
+                                    st.metric("Maximum", f"{max_val:.2f}")
+                                with col4:
+                                    min_val = result[f'min_{col}'].iloc[0]
+                                    st.metric("Minimum", f"{min_val:.2f}")
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if text_columns and st.button("👥 Category Analysis"):
+                    try:
+                        # Analyze first categorical column
+                        cat_col = text_columns[0]
+                        query = f"SELECT `{cat_col}`, COUNT(*) as count FROM `{selected_table_quick}` GROUP BY `{cat_col}` ORDER BY count DESC LIMIT 10;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top categories in {cat_col}:**")
+                            
+                            # Create bar chart
+                            fig = px.bar(result, x=cat_col, y='count', 
+                                       title=f"Distribution of {cat_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Show table
+                            st.dataframe(result)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if len(columns) > 1 and st.button("📈 Data Trends"):
+                    try:
+                        # Show recent data trends (assuming there's some ordering)
+                        query = f"SELECT * FROM `{selected_table_quick}` ORDER BY rowid DESC LIMIT 20;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write("**Recent data trends:**")
+                            st.dataframe(result)
+                            
+                            # If there are numeric columns, create a simple trend chart
+                            if numeric_columns:
+                                trend_col = numeric_columns[0]
+                                fig = px.line(result.reset_index(), 
+                                            x='index', y=trend_col,
+                                            title=f"Trend: {trend_col}")
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if numeric_columns and text_columns and st.button("🔝 Top Performers"):
+                    try:
+                        # Find top performers by combining numeric and categorical data
+                        numeric_col = numeric_columns[0]
+                        category_col = text_columns[0]
+                        
+                        query = f"""
+                        SELECT `{category_col}`, 
+                               AVG(`{numeric_col}`) as avg_value,
+                               COUNT(*) as count
+                        FROM `{selected_table_quick}` 
+                        GROUP BY `{category_col}` 
+                        ORDER BY avg_value DESC 
+                        LIMIT 10;
+                        """
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top {category_col} by average {numeric_col}:**")
+                            st.dataframe(result)
+                            
+                            # Visualization
+                            fig = px.bar(result, x=category_col, y='avg_value',
+                                       title=f"Average {numeric_col} by {category_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+            
+        else:
+            st.info("📂 No database tables available")
+            st.write("**To use Quick Queries:**")
+            st.write("1. Upload CSV files and click 'Load to DB'")
+            st.write("2. Or create a demo database")
+            st.write("3. Then use the quick query buttons")
+            
+            # Legacy quick queries for demo database
+            if st.button("🎲 Create Demo DB First"):
+                try:
+                    create_sample_database()
+                    st.success("Demo database created! Refresh page to see quick queries.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error creating demo database: {e}")
 
 def show_query_insights(result_df):
     """Show insights from SQL query results"""
