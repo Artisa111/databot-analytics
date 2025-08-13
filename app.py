@@ -1246,24 +1246,6 @@ def analyze_trend(series):
     
     return f"{strength.title()} {direction} trend (R²={correlation**2:.3f}, {pct_change:+.1f}% change)"
 
-def analyze_trend(series):
-    """Trend analysis in data"""
-    if len(series) < 2:
-        return "Insufficient data"
-    
-    # Simple trend analysis
-    first_half = series[:len(series)//2].mean()
-    second_half = series[len(series)//2:].mean()
-    
-    change_pct = ((second_half - first_half) / first_half) * 100
-    
-    if change_pct > 5:
-        return f"Growing trend (+{change_pct:.1f}%)"
-    elif change_pct < -5:
-        return f"Declining trend ({change_pct:.1f}%)"
-    else:
-        return f"Stable trend ({change_pct:.1f}%)"
-
 def show_stats():
     st.markdown("## 📊 Statistical Analysis")
     
