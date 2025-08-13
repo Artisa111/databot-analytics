@@ -2108,9 +2108,30 @@ def show_database():
     with col1:
         st.markdown("### 🔗 Database Management")
         
+        # Check if data is loaded in session state first
+        if 'data' in st.session_state:
+            st.info("📊 Data is loaded in session. You can upload additional CSV files to database or work with current data.")
+            
+            # Option to save current data to database
+            if st.button("💾 Save Current Data to Database"):
+                try:
+                    df = st.session_state.data
+                    conn = sqlite3.connect('uploaded_data.db')
+                    
+                    # Clean table name
+                    table_name = 'current_session_data'
+                    df.to_sql(table_name, conn, if_exists='replace', index=False)
+                    conn.close()
+                    
+                    st.success(f"✅ Current session data saved as table '{table_name}'")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Error saving data: {str(e)}")
+        
         # Load CSV files into database
         uploaded_files = st.file_uploader(
-            "Upload CSV files to database",
+            "Upload additional CSV files to database",
             type=['csv'],
             accept_multiple_files=True,
             help="Files will be loaded into SQLite database"
@@ -2148,31 +2169,32 @@ def show_database():
                 st.error(f"Database loading error: {str(e)}")
                 st.info("💡 Try using simpler file names without special characters")
         
-        # Create demo database
-        if st.button("🎲 Create Demo DB"):
-            create_sample_database()
-            st.success("Demo database created!")
+        # Create demo database (only if no real data exists)
+        if 'data' not in st.session_state:
+            if st.button("🎲 Create Demo DB"):
+                create_sample_database()
+                st.success("Demo database created!")
         
         st.markdown("### ✏️ SQL Editor")
         
-        # List available tables
-        if os.path.exists('uploaded_data.db') or os.path.exists('sample_data.db'):
+        # List available tables - prioritize uploaded data
+        current_tables = []
+        db_name = ""
+        
+        # First check for uploaded data
+        if os.path.exists('uploaded_data.db'):
             try:
-                if os.path.exists('uploaded_data.db'):
-                    conn = sqlite3.connect('uploaded_data.db')
-                    db_name = "uploaded_data.db"
-                else:
-                    conn = sqlite3.connect('sample_data.db')
-                    db_name = "sample_data.db"
+                conn = sqlite3.connect('uploaded_data.db')
+                db_name = "uploaded_data.db"
                 
-                # Get table list
                 tables_query = "SELECT name FROM sqlite_master WHERE type='table';"
                 tables_df = pd.read_sql_query(tables_query, conn)
                 
                 if not tables_df.empty:
+                    current_tables = tables_df['name'].tolist()
                     st.markdown(f"**Available tables in {db_name}:**")
                     
-                    for table in tables_df['name']:
+                    for table in current_tables:
                         try:
                             # Get table info safely
                             structure_query = f"SELECT * FROM pragma_table_info('{table}');"
@@ -2188,49 +2210,64 @@ def show_database():
                                 
                         except Exception as e:
                             st.write(f"• **{table}** (error reading structure: {str(e)[:50]}...)")
-                else:
-                    st.warning("No tables found in database")
                 
                 conn.close()
                 
             except Exception as e:
-                st.warning(f"Could not connect to database: {e}")
-                st.info("💡 Try creating a demo database or uploading CSV files first")
-        else:
-            st.info("📂 No database found. Upload CSV files or create demo database first.")
+                st.warning(f"Could not connect to uploaded database: {e}")
         
-        # SQL queries
-        default_queries = {
-            "Show all data": "SELECT * FROM {table_name} LIMIT 10;",
-            "Count records": "SELECT COUNT(*) as total_records FROM {table_name};",
-            "Show columns": "SELECT * FROM pragma_table_info('{table_name}');",
-            "Basic statistics": "SELECT COUNT(*) as records, COUNT(DISTINCT *) as unique_records FROM {table_name};"
-        }
-        
-        # Get available tables for query templates
-        available_tables = []
-        try:
-            if os.path.exists('uploaded_data.db'):
-                conn = sqlite3.connect('uploaded_data.db')
-                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
-                available_tables = tables_df['name'].tolist()
-                conn.close()
-            elif os.path.exists('sample_data.db'):
+        # If no uploaded data, check for demo database
+        if not current_tables and os.path.exists('sample_data.db'):
+            try:
                 conn = sqlite3.connect('sample_data.db')
-                tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
-                available_tables = tables_df['name'].tolist()
+                db_name = "sample_data.db"
+                
+                tables_query = "SELECT name FROM sqlite_master WHERE type='table';"
+                tables_df = pd.read_sql_query(tables_query, conn)
+                
+                if not tables_df.empty:
+                    current_tables = tables_df['name'].tolist()
+                    st.markdown(f"**Available tables in {db_name}:**")
+                    
+                    for table in current_tables:
+                        try:
+                            structure_query = f"SELECT * FROM pragma_table_info('{table}');"
+                            structure = pd.read_sql_query(structure_query, conn)
+                            
+                            if not structure.empty:
+                                columns = ", ".join(structure['name'].tolist())
+                                row_count_query = f"SELECT COUNT(*) as count FROM `{table}`;"
+                                row_count = pd.read_sql_query(row_count_query, conn)['count'].iloc[0]
+                                st.write(f"• **{table}** ({row_count:,} rows): {columns}")
+                                
+                        except Exception as e:
+                            st.write(f"• **{table}** (error: {str(e)[:50]}...)")
+                
                 conn.close()
-        except:
-            pass
+                
+            except Exception as e:
+                st.warning(f"Could not connect to demo database: {e}")
         
-        if available_tables:
-            selected_table = st.selectbox("Select table for template", available_tables)
-            query_template = st.selectbox("Select query template", list(default_queries.keys()))
+        # If no database exists at all
+        if not current_tables:
+            st.info("📂 No database found. Upload CSV files or save current session data first.")
+        
+        # SQL query templates based on available tables
+        if current_tables:
+            selected_table = st.selectbox("Select table for template", current_tables)
             
-            # Replace table name in template
-            template_query = default_queries[query_template].replace('{table_name}', selected_table)
+            # Dynamic query templates
+            default_queries = {
+                "Show all data": f"SELECT * FROM `{selected_table}` LIMIT 10;",
+                "Count records": f"SELECT COUNT(*) as total_records FROM `{selected_table}`;",
+                "Show columns": f"SELECT * FROM pragma_table_info('{selected_table}');",
+                "Basic statistics": f"SELECT COUNT(*) as records FROM `{selected_table}`;"
+            }
+            
+            query_template = st.selectbox("Select query template", list(default_queries.keys()))
+            template_query = default_queries[query_template]
         else:
-            template_query = "-- No tables available. Create demo DB or upload CSV files first.\nSELECT 'No tables found' as message;"
+            template_query = "-- No tables available. Upload CSV files or save session data first.\nSELECT 'No tables found' as message;"
         
         sql_query = st.text_area(
             "SQL Query",
@@ -2240,29 +2277,33 @@ def show_database():
         )
         
         if st.button("▶️ Execute Query"):
-            try:
-                result = execute_sql_query(sql_query)
-                st.success("Query executed successfully!")
-                st.dataframe(result)
-                
-                # Show insights if result contains numeric data
-                numeric_cols = result.select_dtypes(include=[np.number]).columns
-                if len(numeric_cols) > 0:
-                    st.markdown("### 📊 Result Insights")
-                    show_query_insights(result)
+            if current_tables:
+                try:
+                    result = execute_sql_query(sql_query)
+                    st.success("Query executed successfully!")
+                    st.dataframe(result)
                     
-            except Exception as e:
-                st.error(f"Query error: {str(e)}")
+                    # Show insights if result contains numeric data
+                    numeric_cols = result.select_dtypes(include=[np.number]).columns
+                    if len(numeric_cols) > 0:
+                        st.markdown("### 📊 Result Insights")
+                        show_query_insights(result)
+                        
+                except Exception as e:
+                    st.error(f"Query error: {str(e)}")
+            else:
+                st.warning("No database tables available to query.")
     
     with col2:
         st.markdown("### 📊 Quick Queries")
         
-        # Get available tables and their columns for smart queries
+        # Get current tables for quick queries
         available_tables = []
         table_schemas = {}
         
-        try:
-            if os.path.exists('uploaded_data.db'):
+        # Check uploaded data first
+        if os.path.exists('uploaded_data.db'):
+            try:
                 conn = sqlite3.connect('uploaded_data.db')
                 tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
                 available_tables = tables_df['name'].tolist()
@@ -2281,12 +2322,16 @@ def show_database():
                 
                 conn.close()
                 
-            elif os.path.exists('sample_data.db'):
+            except:
+                pass
+        
+        # If no uploaded data, check demo data
+        if not available_tables and os.path.exists('sample_data.db'):
+            try:
                 conn = sqlite3.connect('sample_data.db')
                 tables_df = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
                 available_tables = tables_df['name'].tolist()
                 
-                # Get schema for sample tables
                 for table in available_tables:
                     try:
                         schema_query = f"SELECT * FROM pragma_table_info('{table}');"
@@ -2299,8 +2344,8 @@ def show_database():
                         pass
                 
                 conn.close()
-        except:
-            pass
+            except:
+                pass
         
         if available_tables:
             selected_table_quick = st.selectbox("Select table for quick queries", available_tables, key="quick_table")
@@ -2308,7 +2353,7 @@ def show_database():
             if selected_table_quick in table_schemas:
                 columns = table_schemas[selected_table_quick]['columns']
                 
-                # Find numeric columns for aggregation
+                # Determine column types by actual data
                 numeric_columns = []
                 text_columns = []
                 
@@ -2329,10 +2374,10 @@ def show_database():
                     
                     conn.close()
                 except:
-                    numeric_columns = []
+                    # Fallback to all columns as text
                     text_columns = columns
                 
-                # Smart quick queries based on available columns
+                # Quick query buttons with real data
                 if st.button("📊 Table Summary"):
                     try:
                         query = f"SELECT COUNT(*) as total_records FROM `{selected_table_quick}`;"
@@ -2351,7 +2396,7 @@ def show_database():
                 
                 if numeric_columns and st.button("💰 Numeric Summary"):
                     try:
-                        # Create aggregation for all numeric columns
+                        # Create aggregation for numeric columns
                         agg_parts = []
                         for col in numeric_columns[:5]:  # Limit to 5 columns
                             agg_parts.extend([
@@ -2365,7 +2410,7 @@ def show_database():
                         result = execute_sql_query(query)
                         
                         if not result.empty:
-                            # Display metrics in a nice format
+                            # Display metrics
                             for col in numeric_columns[:3]:  # Show top 3
                                 st.write(f"**{col}:**")
                                 col1, col2, col3, col4 = st.columns(4)
@@ -2390,6 +2435,88 @@ def show_database():
                         # Analyze first categorical column
                         cat_col = text_columns[0]
                         query = f"SELECT `{cat_col}`, COUNT(*) as count FROM `{selected_table_quick}` GROUP BY `{cat_col}` ORDER BY count DESC LIMIT 10;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top categories in {cat_col}:**")
+                            
+                            # Create bar chart
+                            fig = px.bar(result, x=cat_col, y='count', 
+                                       title=f"Distribution of {cat_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Show table
+                            st.dataframe(result)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if len(columns) > 1 and st.button("📈 Data Trends"):
+                    try:
+                        # Show recent data trends
+                        query = f"SELECT * FROM `{selected_table_quick}` ORDER BY rowid DESC LIMIT 20;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write("**Recent data trends:**")
+                            st.dataframe(result)
+                            
+                            # If there are numeric columns, create trend chart
+                            if numeric_columns:
+                                trend_col = numeric_columns[0]
+                                fig = px.line(result.reset_index(), 
+                                            x='index', y=trend_col,
+                                            title=f"Trend: {trend_col}")
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if numeric_columns and text_columns and st.button("🔝 Top Performers"):
+                    try:
+                        # Find top performers
+                        numeric_col = numeric_columns[0]
+                        category_col = text_columns[0]
+                        
+                        query = f"""
+                        SELECT `{category_col}`, 
+                               AVG(`{numeric_col}`) as avg_value,
+                               COUNT(*) as count
+                        FROM `{selected_table_quick}` 
+                        GROUP BY `{category_col}` 
+                        ORDER BY avg_value DESC 
+                        LIMIT 10;
+                        """
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top {category_col} by average {numeric_col}:**")
+                            st.dataframe(result)
+                            
+                            # Visualization
+                            fig = px.bar(result, x=category_col, y='avg_value',
+                                       title=f"Average {numeric_col} by {category_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+            
+        else:
+            st.info("📂 No database tables available")
+            st.write("**To use Quick Queries:**")
+            st.write("1. Upload CSV files and click 'Load to DB'")
+            st.write("2. Or save current session data to database")
+            st.write("3. Then use the quick query buttons")
+            
+            # Option to create demo data only if no session data
+            if 'data' not in st.session_state:
+                if st.button("🎲 Create Demo DB First"):
+                    try:
+                        create_sample_database()
+                        st.success("Demo database created! Refresh page to see quick queries.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error creating demo database: {e}") BY count DESC LIMIT 10;"
                         result = execute_sql_query(query)
                         
                         if not result.empty:
@@ -2511,16 +2638,16 @@ def show_query_insights(result_df):
                         st.plotly_chart(fig, use_container_width=True)
 
 def execute_sql_query(query):
-    """Execute SQL query"""
+    """Execute SQL query on the correct database"""
     try:
-        # First try uploaded_data.db
+        # Priority: uploaded_data.db (real user data) over sample_data.db (demo data)
         if os.path.exists('uploaded_data.db'):
             conn = sqlite3.connect('uploaded_data.db')
             result = pd.read_sql_query(query, conn)
             conn.close()
             return result
         
-        # If not, try sample_data.db
+        # Fallback to demo database only if no uploaded data exists
         elif os.path.exists('sample_data.db'):
             conn = sqlite3.connect('sample_data.db')
             result = pd.read_sql_query(query, conn)
@@ -2528,20 +2655,25 @@ def execute_sql_query(query):
             return result
         
         else:
-            raise Exception("Database not found. Create demo DB or upload CSV files.")
+            raise Exception("No database found. Please upload CSV files or create demo DB first.")
             
     except Exception as e:
         raise e
 
 def create_sample_database():
-    """Create demonstration database"""
+    """Create demonstration database - only used when no real data exists"""
+    
+    # Only create demo data if no uploaded data exists
+    if os.path.exists('uploaded_data.db'):
+        st.warning("Real data already exists in database. Demo data not needed.")
+        return
     
     conn = sqlite3.connect('sample_data.db')
     
-    # Create sales table
+    # Create demo sales table
     np.random.seed(42)
     
-    # Generate realistic data
+    # Generate realistic demo data
     n_records = 1000
     
     regions = ['North', 'South', 'East', 'West', 'Central']
@@ -2566,9 +2698,9 @@ def create_sample_database():
     df['month'] = df['date'].dt.month
     df['day_of_week'] = df['date'].dt.day_name()
     
-    df.to_sql('sales', conn, if_exists='replace', index=False)
+    df.to_sql('demo_sales', conn, if_exists='replace', index=False)
     
-    # Create customers table
+    # Create demo customers table
     customer_data = {
         'customer_id': customers,
         'customer_name': [f'Name_{i}' for i in range(1, len(customers) + 1)],
@@ -2580,7 +2712,7 @@ def create_sample_database():
     }
     
     customers_df = pd.DataFrame(customer_data)
-    customers_df.to_sql('customers', conn, if_exists='replace', index=False)
+    customers_df.to_sql('demo_customers', conn, if_exists='replace', index=False)
     
     conn.close()
 
