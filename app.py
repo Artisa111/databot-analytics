@@ -14,16 +14,16 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
-from wordcloud import WordCloud
 import sqlite3
 import io
-import base64
+import os
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-import folium
-from streamlit_folium import st_folium
 import requests
+import warnings
+warnings.filterwarnings('ignore')
 
+# Page configuration
 st.set_page_config(
     page_title="DataBot Analytics Pro", 
     page_icon="🚀", 
@@ -31,6 +31,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# CSS styles
 st.markdown("""
 <style>
     .main-header {
@@ -59,11 +60,19 @@ st.markdown("""
         text-align: center;
         margin: 0.5rem 0;
     }
-    .sql-editor {
-        background-color: #f8f9fa;
-        border-radius: 5px;
-        padding: 10px;
-        font-family: 'Courier New', monospace;
+    .insight-box {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        margin: 1rem 0;
+    }
+    .advice-box {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        margin: 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -71,17 +80,21 @@ st.markdown("""
 def main():
     st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
+    # Mobile warning
+    st.warning("⚠️ For better performance with large files, use the desktop version!")
+    
     with st.sidebar:
         st.markdown("### 🎯 Navigation")
         page = st.selectbox(
-            "Choose Section",
-            ["🏠 Dashboard", "📁 Upload Data", "📈 Charts", "📊 Statistics", 
-             "🤖 Machine Learning", "🧪 A/B Testing", "💾 Database", "📄 Reports", "🎨 Dashboard Builder"]
+            "Select section",
+            ["🏠 Dashboard", "📁 Data Upload", "📈 Charts", "📊 Statistics", 
+             "🤖 Machine Learning", "🧪 A/B Testing", "💾 Database", "📄 Reports"]
         )
     
+    # Page routing
     if page == "🏠 Dashboard":
         show_dashboard()
-    elif page == "📁 Upload Data":
+    elif page == "📁 Data Upload":
         show_upload()
     elif page == "📈 Charts":
         show_charts()
@@ -95,8 +108,88 @@ def main():
         show_database()
     elif page == "📄 Reports":
         show_reports()
-    elif page == "🎨 Dashboard Builder":
-        show_dashboard_builder()
+
+def show_insights_and_advice(df):
+    """Generate insights and advice based on data"""
+    
+    if df is None or len(df) == 0:
+        return
+    
+    insights = []
+    advice = []
+    
+    # Data size analysis
+    rows, cols = df.shape
+    if rows > 100000:
+        insights.append(f"📊 Large dataset: {rows:,} rows - excellent sample for analysis!")
+        advice.append("💡 Recommend using sampling to speed up visualization")
+    elif rows < 100:
+        insights.append(f"📊 Small dataset: {rows} rows")
+        advice.append("⚠️ Small sample may limit statistical significance of conclusions")
+    
+    # Data quality analysis
+    missing_pct = (df.isnull().sum().sum() / (rows * cols)) * 100
+    if missing_pct > 20:
+        insights.append(f"❌ High percentage of missing data: {missing_pct:.1f}%")
+        advice.append("🔧 Data cleaning needed - fill or remove missing values")
+    elif missing_pct < 5:
+        insights.append(f"✅ Excellent data quality: only {missing_pct:.1f}% missing")
+        advice.append("🎯 Data ready for deep analysis and machine learning")
+    
+    # Data type analysis
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
+    
+    if len(numeric_cols) > len(text_cols):
+        insights.append(f"🔢 Predominantly numeric data: {len(numeric_cols)} out of {cols} columns")
+        advice.append("📈 Perfect for correlation analysis and regression models")
+    elif len(text_cols) > len(numeric_cols):
+        insights.append(f"📝 Lots of text data: {len(text_cols)} out of {cols} columns")
+        advice.append("🔤 Consider NLP analysis or categorical variable encoding")
+    
+    # Correlation analysis
+    if len(numeric_cols) >= 2:
+        corr_matrix = df[numeric_cols].corr()
+        high_corr = np.where(np.abs(corr_matrix) > 0.8)
+        high_corr_pairs = [(corr_matrix.index[i], corr_matrix.columns[j]) 
+                          for i, j in zip(high_corr[0], high_corr[1]) if i != j]
+        
+        if len(high_corr_pairs) > 0:
+            insights.append(f"🔗 Strong correlations found between variables")
+            advice.append("⚡ Use correlation analysis to identify dependencies")
+    
+    # Duplicate analysis
+    duplicates = df.duplicated().sum()
+    if duplicates > 0:
+        insights.append(f"🔄 Duplicates found: {duplicates} ({duplicates/rows*100:.1f}%)")
+        advice.append("🧹 Recommend removing duplicates for analysis accuracy")
+    else:
+        insights.append("✅ No duplicates detected")
+    
+    # Outlier analysis
+    outlier_cols = []
+    for col in numeric_cols:
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
+        if len(outliers) > 0:
+            outlier_cols.append(col)
+    
+    if outlier_cols:
+        insights.append(f"🎯 Outliers detected in {len(outlier_cols)} columns")
+        advice.append("🔍 Investigate outliers - they may contain important information")
+    
+    # Display insights and advice
+    if insights:
+        st.markdown("### 💡 Data Insights")
+        for insight in insights:
+            st.markdown(f'<div class="insight-box">{insight}</div>', unsafe_allow_html=True)
+    
+    if advice:
+        st.markdown("### 🎯 Recommendations")
+        for adv in advice:
+            st.markdown(f'<div class="advice-box">{adv}</div>', unsafe_allow_html=True)
 
 def show_dashboard():
     st.markdown("## 🏠 Welcome to DataBot Analytics Pro!")
@@ -108,24 +201,26 @@ def show_dashboard():
             demo_data = create_demo_data()
             st.session_state.data = demo_data
             st.success("Demo data loaded! 🎉")
+            st.rerun()
         
         if st.button("🛒 Load E-commerce Data"):
             ecommerce_data = create_ecommerce_data()
             st.session_state.data = ecommerce_data
             st.success("E-commerce data loaded! 💰")
+            st.rerun()
     
     with col2:
         st.markdown("### 🎯 Quick Actions")
-        if st.button("🔍 Auto Analysis"):
+        if st.button("🔍 Auto-Analysis"):
             if 'data' in st.session_state:
                 auto_analyze_data()
             else:
-                st.warning("Load data first!")
+                st.warning("Please load data first!")
     
     if 'data' in st.session_state:
         df = st.session_state.data
         
-        # Метрики
+        # Metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -134,720 +229,1289 @@ def show_dashboard():
             st.metric("📊 Columns", f"{len(df.columns)}")
         with col3:
             numeric_cols = df.select_dtypes(include=[np.number]).columns
-            st.metric("🔢 Numeric Cols", f"{len(numeric_cols)}")
+            st.metric("🔢 Numeric", f"{len(numeric_cols)}")
         with col4:
             missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
             st.metric("❌ Missing %", f"{missing_pct:.1f}%")
         
-        # Быстрая визуализация
+        # Show insights and advice
+        show_insights_and_advice(df)
+        
+        # Quick visualization
         if len(numeric_cols) > 0:
             col1, col2 = st.columns(2)
             
             with col1:
-                fig = px.line(df, y=numeric_cols[0], title="Data Trend")
+                fig = px.line(df, y=numeric_cols[0], title=f"Trend: {numeric_cols[0]}")
                 st.plotly_chart(fig, use_container_width=True)
             
             with col2:
                 if len(numeric_cols) > 1:
                     corr_matrix = df[numeric_cols].corr()
-                    fig = px.imshow(corr_matrix, title="Correlation Matrix")
+                    fig = px.imshow(corr_matrix, title="Correlation Matrix", 
+                                  color_continuous_scale="RdBu")
                     st.plotly_chart(fig, use_container_width=True)
 
 def show_upload():
-    st.markdown("## 📂 Upload Your Data")
+    st.markdown("## 📂 Data Upload")
 
-    col1, col2 = st.columns([2, 1])
+    uploaded_files = st.file_uploader(
+        "Select files",
+        type=['csv', 'xlsx', 'xls', 'json'],
+        accept_multiple_files=True,
+        help="Supported formats: CSV, Excel, JSON"
+    )
 
-    with col1:
-        uploaded_files = st.file_uploader(
-            "Choose files",
-            type=['csv', 'xml', 'json', 'xls', 'xlsx'],
-            accept_multiple_files=True
-        )
-
-        if uploaded_files:
-            dfs = []
-            for uploaded_file in uploaded_files:
+    if uploaded_files:
+        dfs = []
+        for uploaded_file in uploaded_files:
+            try:
                 file_name = uploaded_file.name.lower()
-                try:
-                    if file_name.endswith('.csv'):
-                        df = pd.read_csv(uploaded_file)
-                    elif file_name.endswith('.xml'):
-                        df = pd.read_xml(uploaded_file)
-                    elif file_name.endswith('.json'):
-                        df = pd.read_json(uploaded_file)
-                    elif file_name.endswith(('.xls', '.xlsx')):
-                        df = pd.read_excel(uploaded_file)
+                
+                if file_name.endswith('.csv'):
+                    # Try to determine delimiter
+                    sample = str(uploaded_file.read(1024))
+                    uploaded_file.seek(0)
+                    
+                    if ';' in sample:
+                        df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
                     else:
-                        st.error(f"❌ Unsupported file type: {file_name}")
-                        continue
+                        df = pd.read_csv(uploaded_file, encoding='utf-8')
+                        
+                elif file_name.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(uploaded_file)
+                elif file_name.endswith('.json'):
+                    df = pd.read_json(uploaded_file)
+                else:
+                    st.error(f"❌ Unsupported format: {file_name}")
+                    continue
 
-                    dfs.append(df)
-                    st.success(f"✅ {file_name} — Loaded {len(df)} rows!")
+                dfs.append(df)
+                st.success(f"✅ {uploaded_file.name} — Loaded {len(df)} rows, {len(df.columns)} columns")
 
+            except Exception as e:
+                st.error(f"⚠️ Error reading {uploaded_file.name}: {str(e)}")
+
+        if dfs:
+            if len(dfs) == 1:
+                combined_df = dfs[0]
+            else:
+                # Combine files
+                try:
+                    combined_df = pd.concat(dfs, ignore_index=True)
                 except Exception as e:
-                    st.error(f"⚠️ Error reading {file_name}: {e}")
-
-            if dfs:
-                combined_df = pd.concat(dfs, ignore_index=True)
-                st.session_state.data = combined_df
-                st.success(f"📊 Combined total: {len(combined_df)} rows")
-                st.dataframe(combined_df.head())
-
-    
-    with col2:
-        st.markdown("### 📊 Data Quality")
-        if 'data' in st.session_state:
-            df = st.session_state.data
+                    st.error(f"Error combining files: {e}")
+                    combined_df = dfs[0]  # Use first file
             
-            # Качество данных
-            quality_score = calculate_data_quality(df)
-            st.metric("Quality Score", f"{quality_score:.1f}/10")
+            st.session_state.data = combined_df
+            st.success(f"📊 Total loaded: {len(combined_df)} rows, {len(combined_df.columns)} columns")
             
+            # Preview
+            st.markdown("### 👀 Preview")
+            st.dataframe(combined_df.head(10))
+            
+            # Show insights
+            show_insights_and_advice(combined_df)
+            
+            # Data cleaning tools
             st.markdown("### 🔧 Data Cleaning")
-            if st.button("Remove Duplicates"):
-                df_clean = df.drop_duplicates()
-                st.session_state.data = df_clean
-                st.success(f"Removed {len(df) - len(df_clean)} duplicates")
+            col1, col2, col3 = st.columns(3)
             
-            if st.button("Fill Missing Values"):
-                df_filled = fill_missing_values(df)
-                st.session_state.data = df_filled
-                st.success("Missing values filled!")
+            with col1:
+                if st.button("🗑️ Remove Duplicates"):
+                    initial_len = len(combined_df)
+                    combined_df = combined_df.drop_duplicates()
+                    st.session_state.data = combined_df
+                    removed = initial_len - len(combined_df)
+                    st.success(f"Removed {removed} duplicates")
+                    if removed > 0:
+                        st.rerun()
+            
+            with col2:
+                if st.button("🔧 Fill Missing Values"):
+                    combined_df = fill_missing_values(combined_df)
+                    st.session_state.data = combined_df
+                    st.success("Missing values filled!")
+                    st.rerun()
+            
+            with col3:
+                if st.button("📊 Basic Statistics"):
+                    st.markdown("#### 📈 Descriptive Statistics")
+                    numeric_cols = combined_df.select_dtypes(include=[np.number]).columns
+                    if len(numeric_cols) > 0:
+                        st.dataframe(combined_df[numeric_cols].describe())
+                    else:
+                        st.info("No numeric columns for analysis")
 
 def show_charts():
-    st.markdown("## 📈 Advanced Data Visualization")
+    st.markdown("## 📈 Data Visualization")
+    
     if 'data' not in st.session_state:
-        st.warning("Please upload data first!")
+        st.warning("📂 Please load data first!")
         return
     
     df = st.session_state.data
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    text_cols = df.select_dtypes(include=['object']).columns.tolist()
+    text_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
+    datetime_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
     
-    # Выбор типа графика
+    # Chart type selection
     chart_type = st.selectbox(
-        "📊 Choose Chart Type", 
-        ["📈 Line Chart", "📊 Bar Chart", "🔵 Scatter Plot", "📉 Area Chart", 
-         "🗺️ Heatmap", "🌍 World Map", "☁️ Word Cloud", "📊 3D Scatter", "🗺️ Leaflet Map"]
+        "📊 Select chart type", 
+        ["📈 Line Chart", "📊 Bar Chart", "🔵 Scatter Plot", 
+         "📉 Area Chart", "🗺️ Heatmap", "🥧 Pie Chart", 
+         "📦 Box Plot", "📊 Histogram", "🎻 Violin Plot"]
     )
     
-    if chart_type == "☁️ Word Cloud" and len(text_cols) > 0:
-        st.markdown("### ☁️ Text Analysis")
-        text_col = st.selectbox("Choose Text Column", text_cols)
+    if chart_type == "📈 Line Chart" and len(numeric_cols) > 0:
+        st.markdown("### 📈 Line Chart")
         
-        if st.button("Generate Word Cloud"):
-            text_data = ' '.join(df[text_col].astype(str))
-            wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text_data)
-            
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.imshow(wordcloud, interpolation='bilinear')
-            ax.axis('off')
-            st.pyplot(fig)
+        col1, col2 = st.columns(2)
+        with col1:
+            y_col = st.selectbox("Y-axis", numeric_cols)
+        with col2:
+            x_col = st.selectbox("X-axis (optional)", ["Index"] + list(df.columns))
+        
+        if x_col == "Index":
+            fig = px.line(df, y=y_col, title=f"Trend: {y_col}")
+        else:
+            fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}")
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Insights for line chart
+        if len(numeric_cols) > 0:
+            trend_analysis = analyze_trend(df[y_col])
+            st.info(f"📈 Trend: {trend_analysis}")
     
-    elif chart_type == "📊 3D Scatter" and len(numeric_cols) >= 3:
-        st.markdown("### 📊 3D Scatter Plot")
-        col1, col2, col3 = st.columns(3)
+    elif chart_type == "📊 Bar Chart":
+        st.markdown("### 📊 Bar Chart")
         
+        if len(numeric_cols) > 0 and len(text_cols) > 0:
+            col1, col2 = st.columns(2)
+            with col1:
+                cat_col = st.selectbox("Category", text_cols)
+            with col2:
+                val_col = st.selectbox("Value", numeric_cols)
+            
+            # Data aggregation
+            agg_data = df.groupby(cat_col)[val_col].mean().reset_index()
+            fig = px.bar(agg_data, x=cat_col, y=val_col, 
+                        title=f"Average {val_col} by {cat_col}")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Insights
+            top_category = agg_data.loc[agg_data[val_col].idxmax(), cat_col]
+            st.success(f"🏆 Leading category: {top_category}")
+        else:
+            st.warning("Need categorical and numeric columns")
+    
+    elif chart_type == "🔵 Scatter Plot" and len(numeric_cols) >= 2:
+        st.markdown("### 🔵 Scatter Plot")
+        
+        col1, col2, col3 = st.columns(3)
         with col1:
             x_col = st.selectbox("X-axis", numeric_cols)
         with col2:
             y_col = st.selectbox("Y-axis", [col for col in numeric_cols if col != x_col])
         with col3:
-            z_col = st.selectbox("Z-axis", [col for col in numeric_cols if col not in [x_col, y_col]])
+            color_col = st.selectbox("Color by", ["None"] + text_cols)
         
-        fig = px.scatter_3d(df, x=x_col, y=y_col, z=z_col, title="3D Scatter Plot")
+        if color_col == "None":
+            fig = px.scatter(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
+        else:
+            fig = px.scatter(df, x=x_col, y=y_col, color=color_col, 
+                           title=f"{y_col} vs {x_col} (color: {color_col})")
+        
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Correlation analysis
+        correlation = df[x_col].corr(df[y_col])
+        if abs(correlation) > 0.7:
+            st.success(f"🔗 Strong correlation: {correlation:.3f}")
+        elif abs(correlation) > 0.3:
+            st.info(f"📊 Moderate correlation: {correlation:.3f}")
+        else:
+            st.warning(f"📉 Weak correlation: {correlation:.3f}")
     
-    elif chart_type == "🌍 World Map":
-        show_world_map()
+    elif chart_type == "🗺️ Heatmap" and len(numeric_cols) >= 2:
+        st.markdown("### 🗺️ Correlation Heatmap")
+        
+        corr_matrix = df[numeric_cols].corr()
+        fig = px.imshow(corr_matrix, 
+                       title="Correlation Matrix",
+                       color_continuous_scale="RdBu",
+                       aspect="auto")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Find strong correlations
+        strong_corrs = []
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = corr_matrix.iloc[i, j]
+                if abs(corr_val) > 0.7:
+                    strong_corrs.append(
+                        (corr_matrix.columns[i], corr_matrix.columns[j], corr_val)
+                    )
+        
+        if strong_corrs:
+            st.markdown("#### 🔗 Strong Correlations:")
+            for var1, var2, corr in strong_corrs:
+                st.write(f"• {var1} ↔ {var2}: {corr:.3f}")
     
-    elif chart_type == "🗺️ Leaflet Map":
-        show_leaflet_map()
+    elif chart_type == "🥧 Pie Chart" and len(text_cols) > 0:
+        st.markdown("### 🥧 Pie Chart")
+        
+        cat_col = st.selectbox("Select category", text_cols)
+        value_counts = df[cat_col].value_counts().head(10)  # Top-10 categories
+        
+        fig = px.pie(values=value_counts.values, names=value_counts.index,
+                    title=f"Distribution of {cat_col}")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Statistics
+        st.write(f"📊 Total unique values: {df[cat_col].nunique()}")
+        dominant_cat = value_counts.index[0]
+        dominant_pct = (value_counts.iloc[0] / len(df)) * 100
+        st.info(f"🎯 Dominant category: {dominant_cat} ({dominant_pct:.1f}%)")
     
-    elif len(numeric_cols) >= 1:
-        if chart_type == "📈 Line Chart":
-            col_choice = st.selectbox("Choose Column", numeric_cols)
-            fig = px.line(df, y=col_choice, title=f"Line Chart: {col_choice}")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        elif chart_type == "📊 Bar Chart":
-            col_choice = st.selectbox("Choose Column", numeric_cols)
-            fig = px.bar(df, y=col_choice, title=f"Bar Chart: {col_choice}")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        elif chart_type == "🔵 Scatter Plot" and len(numeric_cols) >= 2:
-            col1, col2 = st.columns(2)
-            with col1:
-                x_col = st.selectbox("X-axis", numeric_cols)
-            with col2:
-                y_col = st.selectbox("Y-axis", [col for col in numeric_cols if col != x_col])
-            fig = px.scatter(df, x=x_col, y=y_col, title=f"Scatter: {x_col} vs {y_col}")
-            st.plotly_chart(fig, use_container_width=True)
+    elif chart_type == "📦 Box Plot" and len(numeric_cols) > 0:
+        st.markdown("### 📦 Box Plot")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            num_col = st.selectbox("Numeric column", numeric_cols)
+        with col2:
+            group_col = st.selectbox("Grouping", ["None"] + text_cols)
+        
+        if group_col == "None":
+            fig = px.box(df, y=num_col, title=f"Distribution of {num_col}")
+        else:
+            fig = px.box(df, x=group_col, y=num_col, 
+                        title=f"Distribution of {num_col} by {group_col}")
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Outlier analysis
+        Q1 = df[num_col].quantile(0.25)
+        Q3 = df[num_col].quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = df[(df[num_col] < Q1 - 1.5*IQR) | (df[num_col] > Q3 + 1.5*IQR)]
+        
+        if len(outliers) > 0:
+            st.warning(f"⚠️ Outliers detected: {len(outliers)} ({len(outliers)/len(df)*100:.1f}%)")
+        else:
+            st.success("✅ No outliers detected")
 
-def show_leaflet_map():
-    st.markdown("### 🗺️ Interactive Leaflet Map")
+def analyze_trend(series):
+    """Trend analysis in data"""
+    if len(series) < 2:
+        return "Insufficient data"
+    
+    # Simple trend analysis
+    first_half = series[:len(series)//2].mean()
+    second_half = series[len(series)//2:].mean()
+    
+    change_pct = ((second_half - first_half) / first_half) * 100
+    
+    if change_pct > 5:
+        return f"Growing trend (+{change_pct:.1f}%)"
+    elif change_pct < -5:
+        return f"Declining trend ({change_pct:.1f}%)"
+    else:
+        return f"Stable trend ({change_pct:.1f}%)"
+
+def show_stats():
+    st.markdown("## 📊 Statistical Analysis")
+    
+    if 'data' not in st.session_state:
+        st.warning("📂 Please load data first!")
+        return
+    
+    df = st.session_state.data
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    if len(numeric_cols) == 0:
+        st.warning("🔢 No numeric columns in data for analysis")
+        return
     
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # Поиск локации
-        search_query = st.text_input(
-            "🔍 Search any location", 
-            placeholder="Try: 'Tel Aviv', 'Kyiv', 'Paris', 'Times Square NYC'...",
-            help="Enter any city, address, landmark, or coordinates"
-        )
+        st.markdown("### 📈 Descriptive Statistics")
+        stats_df = df[numeric_cols].describe()
+        st.dataframe(stats_df)
         
-        if search_query and st.button("🌍 Search & Navigate"):
-            with st.spinner("Searching location..."):
-                coords = geocode_location(search_query)
-                if coords:
-                    st.session_state.map_center = coords
-                    st.session_state.search_result = search_query
-                    st.success(f"✅ Found: {search_query}")
-                    st.rerun()
-                else:
-                    st.error("❌ Location not found. Try a different search term.")
+        # Distributions
+        st.markdown("### 📊 Distribution Analysis")
+        selected_col = st.selectbox("Select column", numeric_cols)
+        
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            # Histogram
+            fig_hist = px.histogram(df, x=selected_col, title=f"Histogram: {selected_col}",
+                                  nbins=30)
+            st.plotly_chart(fig_hist, use_container_width=True)
+        
+        with col_b:
+            # Q-Q plot for normality testing
+            from scipy import stats as scipy_stats
+            data_clean = df[selected_col].dropna()
+            
+            fig_qq = go.Figure()
+            
+            # Theoretical quantiles of normal distribution
+            theoretical_quantiles = scipy_stats.norm.ppf(np.linspace(0.01, 0.99, len(data_clean)))
+            sample_quantiles = np.sort(data_clean)
+            
+            fig_qq.add_trace(go.Scatter(
+                x=theoretical_quantiles,
+                y=sample_quantiles,
+                mode='markers',
+                name='Data'
+            ))
+            
+            # Normal distribution line
+            fig_qq.add_trace(go.Scatter(
+                x=theoretical_quantiles,
+                y=theoretical_quantiles * data_clean.std() + data_clean.mean(),
+                mode='lines',
+                name='Normal Distribution',
+                line=dict(color='red', dash='dash')
+            ))
+            
+            fig_qq.update_layout(title=f"Q-Q Plot: {selected_col}",
+                               xaxis_title="Theoretical Quantiles",
+                               yaxis_title="Sample Quantiles")
+            st.plotly_chart(fig_qq, use_container_width=True)
     
     with col2:
-        st.markdown("### ⚙️ Map Settings")
+        st.markdown("### 🧪 Statistical Tests")
         
-        # Настройки карты
-        map_style = st.selectbox("Map Style", [
-            "OpenStreetMap",
-            "CartoDB positron", 
-            "CartoDB dark_matter",
-            "Stamen Terrain",
-            "Stamen Toner"
-        ])
-        
-        show_markers = st.checkbox("Show Data Points", True)
-        show_heatmap = st.checkbox("Show Heatmap", False)
-    
-    # Центр карты (по умолчанию Jerusalem)
-    if 'map_center' not in st.session_state:
-        st.session_state.map_center = [31.7683, 35.2137]  # Jerusalem
-    
-    # Создание карты
-    m = create_interactive_map(
-        center=st.session_state.map_center,
-        style=map_style,
-        show_markers=show_markers,
-        show_heatmap=show_heatmap
-    )
-    
-    # Отображение карты
-    st.markdown("### 🌍 Interactive Map")
-    map_data = st_folium(m, width=1000, height=600, returned_objects=["last_clicked", "last_object_clicked"])
-    
-    # Информация о клике
-    if map_data['last_clicked']:
-        lat = map_data['last_clicked']['lat']
-        lng = map_data['last_clicked']['lng']
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("📍 Latitude", f"{lat:.6f}")
-        with col2:
-            st.metric("📍 Longitude", f"{lng:.6f}")
-        with col3:
-            # Обратное геокодирование
-            address = reverse_geocode(lat, lng)
-            st.info(f"📍 {address}")
-    
-    # Показать результат поиска
-    if 'search_result' in st.session_state:
-        st.success(f"🎯 Current location: {st.session_state.search_result}")
-
-def create_interactive_map(center, style="OpenStreetMap", show_markers=True, show_heatmap=False):
-    """Создание интерактивной Leaflet карты"""
-    
-    # Карта с выбранным стилем
-    m = folium.Map(
-        location=center,
-        zoom_start=12,
-        tiles=style
-    )
-    
-    # Добавление основного маркера
-    folium.Marker(
-        center,
-        popup=f"📍 Current Location<br>Lat: {center[0]:.4f}<br>Lng: {center[1]:.4f}",
-        tooltip="📍 Current Location",
-        icon=folium.Icon(color='red', icon='star', prefix='fa')
-    ).add_to(m)
-    
-    # Добавление данных если есть
-    if 'data' in st.session_state and show_markers:
-        df = st.session_state.data
-        add_data_points_to_map(m, df)
-    
-    # Heatmap если включен
-    if 'data' in st.session_state and show_heatmap:
-        add_heatmap_to_map(m, st.session_state.data)
-    
-    # Добавление популярных мест
-    add_popular_locations(m)
-    
-    # Добавление контролов
-    add_map_controls(m)
-    
-    return m
-
-def geocode_location(query):
-    """Геокодирование через Google-подобный поиск"""
-    
-    try:
-        # Пробуем несколько сервисов геокодирования
-        
-        # 1. Nominatim (OpenStreetMap)
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {
-            'q': query,
-            'format': 'json',
-            'limit': 1
-        }
-        
-        response = requests.get(url, params=params, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data:
-                lat = float(data[0]['lat'])
-                lon = float(data[0]['lon'])
-                return [lat, lon]
-        
-        # 2. Fallback - координаты напрямую
-        if ',' in query:
-            try:
-                parts = query.split(',')
-                if len(parts) == 2:
-                    lat = float(parts[0].strip())
-                    lon = float(parts[1].strip())
-                    if -90 <= lat <= 90 and -180 <= lon <= 180:
-                        return [lat, lon]
-            except:
-                pass
-        
-        # 3. Предустановленные локации
-        known_locations = {
-            'jerusalem': [31.7683, 35.2137],
-            'tel aviv': [32.0853, 34.7818],
-            'haifa': [32.7940, 34.9896],
-            'new york': [40.7128, -74.0060],
-            'london': [51.5074, -0.1278],
-            'paris': [48.8566, 2.3522],
-            'tokyo': [35.6762, 139.6503],
-            'moscow': [55.7558, 37.6173],
-            'dubai': [25.2048, 55.2708],
-            'kyiv': [50.4501, 30.5234],
-            'berlin': [52.5200, 13.4050],
-            'kiryat gat': [31.6095, 34.7733],
-            'lviv': [49.8397, 24.0297],
-        }
-        
-        query_lower = query.lower()
-        for location, coords in known_locations.items():
-            if location in query_lower:
-                return coords
-        
-        return None
-        
-    except Exception as e:
-        print(f"Geocoding error: {e}")
-        return None
-
-def reverse_geocode(lat, lng):
-    """Обратное геокодирование - получение адреса по координатам"""
-    
-    try:
-        url = "https://nominatim.openstreetmap.org/reverse"
-        params = {
-            'lat': lat,
-            'lon': lng,
-            'format': 'json'
-        }
-        
-        response = requests.get(url, params=params, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('display_name', f"Lat: {lat:.4f}, Lng: {lng:.4f}")
-        
-    except:
-        pass
-    
-    return f"Lat: {lat:.4f}, Lng: {lng:.4f}"
-
-def add_data_points_to_map(map_obj, df):
-    """Добавление точек данных на карту"""
-    
-    # Ищем колонки с координатами
-    lat_cols = [col for col in df.columns if 'lat' in col.lower() or 'latitude' in col.lower()]
-    lng_cols = [col for col in df.columns if 'lng' in col.lower() or 'lon' in col.lower() or 'longitude' in col.lower()]
-    
-    if lat_cols and lng_cols:
-        lat_col = lat_cols[0]
-        lng_col = lng_cols[0]
-        
-        # Добавляем маркеры для каждой точки
-        for idx, row in df.iterrows():
-            if pd.notna(row[lat_col]) and pd.notna(row[lng_col]):
-                try:
-                    lat = float(row[lat_col])
-                    lng = float(row[lng_col])
-                    
-                    # Создаем popup с информацией
-                    popup_info = f"<b>Data Point {idx}</b><br>"
-                    for col in df.columns[:5]:  # Показываем первые 5 колонок
-                        popup_info += f"{col}: {row[col]}<br>"
-                    
-                    folium.CircleMarker(
-                        location=[lat, lng],
-                        radius=5,
-                        popup=popup_info,
-                        color='blue',
-                        fill=True,
-                        fillColor='lightblue'
-                    ).add_to(map_obj)
-                    
-                except:
-                    continue
-
-def add_heatmap_to_map(map_obj, df):
-    """Добавление тепловой карты"""
-    
-    try:
-        from folium.plugins import HeatMap
-        
-        # Ищем колонки с координатами
-        lat_cols = [col for col in df.columns if 'lat' in col.lower()]
-        lng_cols = [col for col in df.columns if 'lng' in col.lower() or 'lon' in col.lower()]
-        
-        if lat_cols and lng_cols:
-            lat_col = lat_cols[0]
-            lng_col = lng_cols[0]
+        # Normality test
+        if st.button("🔬 Normality Test"):
+            data_sample = df[selected_col].dropna().sample(min(5000, len(df[selected_col].dropna())))
+            stat, p_value = stats.shapiro(data_sample)
             
-            heat_data = []
-            for idx, row in df.iterrows():
-                if pd.notna(row[lat_col]) and pd.notna(row[lng_col]):
-                    try:
-                        lat = float(row[lat_col])
-                        lng = float(row[lng_col])
-                        heat_data.append([lat, lng])
-                    except:
-                        continue
+            st.metric("Test Statistic", f"{stat:.4f}")
+            st.metric("P-value", f"{p_value:.4f}")
             
-            if heat_data:
-                HeatMap(heat_data).add_to(map_obj)
+            if p_value > 0.05:
+                st.success("✅ Data follows normal distribution")
+            else:
+                st.warning("❌ Data does not follow normal distribution")
+        
+        # Correlation analysis
+        if len(numeric_cols) >= 2:
+            st.markdown("#### 🔗 Correlation Analysis")
+            
+            col1_test = st.selectbox("Variable 1", numeric_cols, key="corr1")
+            col2_test = st.selectbox("Variable 2", 
+                                   [col for col in numeric_cols if col != col1_test], 
+                                   key="corr2")
+            
+            if st.button("📊 Analyze Correlation"):
+                # Data cleaning
+                data1 = df[col1_test].dropna()
+                data2 = df[col2_test].dropna()
+                common_idx = data1.index.intersection(data2.index)
+                data1 = data1[common_idx]
+                data2 = data2[common_idx]
                 
-    except ImportError:
-        pass  # HeatMap не доступен
+                # Pearson correlation
+                corr_pearson, p_pearson = stats.pearsonr(data1, data2)
+                
+                # Spearman correlation
+                corr_spearman, p_spearman = stats.spearmanr(data1, data2)
+                
+                st.metric("Pearson Correlation", f"{corr_pearson:.3f}")
+                st.metric("P-value (Pearson)", f"{p_pearson:.4f}")
+                st.metric("Spearman Correlation", f"{corr_spearman:.3f}")
+                st.metric("P-value (Spearman)", f"{p_spearman:.4f}")
+                
+                # Interpretation
+                if abs(corr_pearson) > 0.8:
+                    st.success("🔗 Very strong correlation!")
+                elif abs(corr_pearson) > 0.6:
+                    st.info("📈 Strong correlation")
+                elif abs(corr_pearson) > 0.3:
+                    st.warning("📊 Moderate correlation")
+                else:
+                    st.error("📉 Weak correlation")
+        
+        # Outlier analysis
+        st.markdown("#### 🎯 Outlier Analysis")
+        if st.button("🔍 Find Outliers"):
+            outliers_info = detect_outliers_advanced(df[selected_col])
+            
+            st.write("**Detection Methods:**")
+            for method, data in outliers_info.items():
+                st.write(f"• {method}: {data['count']} outliers ({data['percentage']:.1f}%)")
 
-def add_popular_locations(map_obj):
-    """Добавление популярных мест"""
+def detect_outliers_advanced(series):
+    """Advanced outlier detection using multiple methods"""
     
-    popular_places = [
-        {"name": "🏛️ Old City Jerusalem", "coords": [31.7767, 35.2345], "color": "orange"},
-        {"name": "🏖️ Tel Aviv Beach", "coords": [32.0805, 34.7693], "color": "blue"},
-        {"name": "🌊 Haifa Port", "coords": [32.8191, 34.9983], "color": "green"},
-        {"name": "🏜️ Dead Sea", "coords": [31.5590, 35.4732], "color": "purple"},
-    ]
+    results = {}
+    clean_data = series.dropna()
     
-    for place in popular_places:
-        folium.CircleMarker(
-            location=place["coords"],
-            radius=8,
-            popup=place["name"],
-            tooltip=place["name"],
-            color=place["color"],
-            fill=True,
-            fillColor=place["color"],
-            fillOpacity=0.7
-        ).add_to(map_obj)
-
-def add_map_controls(map_obj):
-    """Добавление контролов на карту"""
+    # IQR method
+    Q1 = clean_data.quantile(0.25)
+    Q3 = clean_data.quantile(0.75)
+    IQR = Q3 - Q1
+    iqr_outliers = clean_data[(clean_data < Q1 - 1.5*IQR) | (clean_data > Q3 + 1.5*IQR)]
     
-    try:
-        from folium.plugins import MeasureControl, Draw, Fullscreen
-        
-        # Инструмент измерения расстояний
-        map_obj.add_child(MeasureControl())
-        
-        # Полноэкранный режим
-        map_obj.add_child(Fullscreen())
-        
-        # Инструменты рисования
-        draw = Draw(
-            draw_options={'polyline': True, 'polygon': True, 'circle': True, 'rectangle': True, 'marker': True},
-            edit_options={'edit': True}
-        )
-        map_obj.add_child(draw)
-        
-    except ImportError:
-        pass  # Плагины не доступны
+    results['IQR'] = {
+        'count': len(iqr_outliers),
+        'percentage': len(iqr_outliers) / len(clean_data) * 100
+    }
+    
+    # Z-score method
+    z_scores = np.abs((clean_data - clean_data.mean()) / clean_data.std())
+    z_outliers = clean_data[z_scores > 3]
+    
+    results['Z-Score'] = {
+        'count': len(z_outliers),
+        'percentage': len(z_outliers) / len(clean_data) * 100
+    }
+    
+    # Modified Z-score (median)
+    median = clean_data.median()
+    mad = np.median(np.abs(clean_data - median))
+    modified_z_scores = 0.6745 * (clean_data - median) / mad
+    modified_z_outliers = clean_data[np.abs(modified_z_scores) > 3.5]
+    
+    results['Modified Z-Score'] = {
+        'count': len(modified_z_outliers),
+        'percentage': len(modified_z_outliers) / len(clean_data) * 100
+    }
+    
+    return results
 
 def show_ml():
-    st.markdown("## 🤖 Machine Learning Analytics")
+    st.markdown("## 🤖 Machine Learning")
     
     if 'data' not in st.session_state:
-        st.warning("Please upload data first!")
+        st.warning("📂 Please load data first!")
         return
     
     df = st.session_state.data
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     
     if len(numeric_cols) < 2:
-        st.warning("Need at least 2 numeric columns for ML!")
+        st.warning("🔢 Need at least 2 numeric columns for ML analysis!")
         return
     
     ml_type = st.selectbox(
-        "🤖 Choose ML Analysis",
-        ["🎯 Clustering", "📉 PCA Analysis", "🔍 Outlier Detection", "📊 Feature Importance"]
+        "🤖 Select analysis type",
+        ["🎯 Clustering", "📉 PCA Analysis", "🔍 Anomaly Detection", "📊 Feature Importance"]
     )
     
     if ml_type == "🎯 Clustering":
-        st.markdown("### K-Means Clustering")
+        st.markdown("### 🎯 K-Means Clustering")
         
-        n_clusters = st.slider("Number of Clusters", 2, 10, 3)
-        selected_features = st.multiselect("Select Features", numeric_cols, default=numeric_cols[:3])
+        col1, col2 = st.columns([2, 1])
         
-        if len(selected_features) >= 2 and st.button("Run Clustering"):
-            # Подготовка данных
-            X = df[selected_features].dropna()
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+        with col1:
+            selected_features = st.multiselect(
+                "Select features", 
+                numeric_cols, 
+                default=numeric_cols[:min(3, len(numeric_cols))]
+            )
             
-            # Кластеризация
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-            clusters = kmeans.fit_predict(X_scaled)
-            
-            # Добавляем кластеры в данные
-            df_clustered = X.copy()
-            df_clustered['Cluster'] = clusters
-            
-            # Визуализация
-            if len(selected_features) >= 2:
-                fig = px.scatter(
-                    df_clustered, 
-                    x=selected_features[0], 
-                    y=selected_features[1],
-                    color='Cluster',
-                    title="K-Means Clustering Results"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            
-            # Статистика кластеров
-            st.markdown("### 📊 Cluster Statistics")
-            cluster_stats = df_clustered.groupby('Cluster')[selected_features].mean()
-            st.dataframe(cluster_stats)
+            n_clusters = st.slider("Number of clusters", 2, 10, 3)
+        
+        with col2:
+            st.markdown("#### ⚙️ Settings")
+            scale_data = st.checkbox("Normalize data", True)
+            random_state = st.number_input("Random State", 0, 1000, 42)
+        
+        if len(selected_features) >= 2 and st.button("🚀 Run Clustering"):
+            with st.spinner("Performing clustering..."):
+                # Data preparation
+                X = df[selected_features].dropna()
+                
+                if scale_data:
+                    scaler = StandardScaler()
+                    X_scaled = scaler.fit_transform(X)
+                else:
+                    X_scaled = X.values
+                
+                # Clustering
+                kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10)
+                clusters = kmeans.fit_predict(X_scaled)
+                
+                # Add clusters to data
+                df_clustered = X.copy()
+                df_clustered['Cluster'] = clusters
+                
+                # Visualization
+                if len(selected_features) >= 2:
+                    fig = px.scatter(
+                        df_clustered, 
+                        x=selected_features[0], 
+                        y=selected_features[1],
+                        color='Cluster',
+                        title="K-Means Clustering Results",
+                        color_discrete_sequence=px.colors.qualitative.Set1
+                    )
+                    
+                    # Add centroids
+                    if scale_data:
+                        centroids_original = scaler.inverse_transform(kmeans.cluster_centers_)
+                    else:
+                        centroids_original = kmeans.cluster_centers_
+                    
+                    fig.add_trace(go.Scatter(
+                        x=centroids_original[:, 0],
+                        y=centroids_original[:, 1],
+                        mode='markers',
+                        marker=dict(symbol='x', size=15, color='black'),
+                        name='Centroids'
+                    ))
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Cluster statistics
+                st.markdown("### 📊 Cluster Statistics")
+                cluster_stats = df_clustered.groupby('Cluster')[selected_features].agg(['mean', 'count'])
+                st.dataframe(cluster_stats)
+                
+                # Cluster analysis
+                st.markdown("### 💡 Cluster Analysis")
+                for i in range(n_clusters):
+                    cluster_data = df_clustered[df_clustered['Cluster'] == i]
+                    cluster_size = len(cluster_data)
+                    cluster_pct = (cluster_size / len(df_clustered)) * 100
+                    
+                    st.write(f"**Cluster {i}**: {cluster_size} points ({cluster_pct:.1f}%)")
+                    
+                    # Cluster characteristics
+                    for feature in selected_features[:3]:  # Show first 3 features
+                        mean_val = cluster_data[feature].mean()
+                        overall_mean = df_clustered[feature].mean()
+                        diff_pct = ((mean_val - overall_mean) / overall_mean) * 100
+                        
+                        if abs(diff_pct) > 10:
+                            if diff_pct > 0:
+                                st.write(f"  • {feature}: above average by {diff_pct:.1f}%")
+                            else:
+                                st.write(f"  • {feature}: below average by {abs(diff_pct):.1f}%")
+                
+                # Clustering quality metric
+                from sklearn.metrics import silhouette_score
+                silhouette_avg = silhouette_score(X_scaled, clusters)
+                st.metric("Silhouette Score", f"{silhouette_avg:.3f}")
+                
+                if silhouette_avg > 0.7:
+                    st.success("🎉 Excellent clustering quality!")
+                elif silhouette_avg > 0.5:
+                    st.info("👍 Good clustering quality")
+                elif silhouette_avg > 0.3:
+                    st.warning("⚠️ Satisfactory quality")
+                else:
+                    st.error("❌ Poor clustering quality")
     
     elif ml_type == "📉 PCA Analysis":
-        st.markdown("### Principal Component Analysis")
+        st.markdown("### 📉 Principal Component Analysis (PCA)")
         
-        selected_features = st.multiselect("Select Features", numeric_cols, default=numeric_cols)
-        
-        if len(selected_features) >= 2 and st.button("Run PCA"):
-            # Подготовка данных
-            X = df[selected_features].dropna()
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
-            
-            # PCA
-            pca = PCA()
-            X_pca = pca.fit_transform(X_scaled)
-            
-            # Explained variance
-            explained_variance = pca.explained_variance_ratio_
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Scree plot
-                fig = px.bar(
-                    x=range(1, len(explained_variance) + 1),
-                    y=explained_variance,
-                    title="PCA Explained Variance",
-                    labels={'x': 'Principal Component', 'y': 'Explained Variance Ratio'}
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                # Cumulative explained variance
-                cumulative_variance = np.cumsum(explained_variance)
-                fig = px.line(
-                    x=range(1, len(cumulative_variance) + 1),
-                    y=cumulative_variance,
-                    title="Cumulative Explained Variance"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-
-def show_ab_testing():
-    st.markdown("## 🧪 A/B Testing & Statistical Analysis")
-    
-    # Проверяем, что данные загружены
-    if 'data' not in st.session_state or st.session_state.data is None:
-        st.warning("📂 Please upload your dataset first in the 'Upload Data' section!")
-        return
-
-    df = st.session_state.data
-
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 📊 A/B Test Setup")
-
-        # Выбор колонок
-        group_col = st.selectbox("Select Group Column", df.columns)
-        metric_col = st.selectbox("Select Metric Column", df.columns)
-
-        if st.button("📊 Analyze A/B Test"):
-            try:
-                # Фильтруем только нужные столбцы
-                ab_data = df[[group_col, metric_col]].dropna()
-
-                # Группы: Control и Treatment
-                control = ab_data[ab_data[group_col] == ab_data[group_col].unique()[0]][metric_col]
-                treatment = ab_data[ab_data[group_col] == ab_data[group_col].unique()[1]][metric_col]
-
-                # Расчёты
-                control_mean = control.mean()
-                treatment_mean = treatment.mean()
-                from scipy import stats
-                t_stat, p_value = stats.ttest_ind(control, treatment, equal_var=False)
-
-                # Результаты
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Control Mean", f"{control_mean:.3f}")
-                with col2:
-                    st.metric("Treatment Mean", f"{treatment_mean:.3f}")
-                with col3:
-                    st.metric("P-value", f"{p_value:.4f}")
-
-                if p_value < 0.05:
-                    st.success("🎉 Statistically Significant!")
-                else:
-                    st.warning("❌ Not Statistically Significant")
-
-                # Визуализация
-                fig = px.box(ab_data, x=group_col, y=metric_col, title=f"Distribution of {metric_col}")
-                st.plotly_chart(fig, use_container_width=True)
-
-            except Exception as e:
-                st.error(f"⚠️ Error analyzing A/B test: {e}")
-
-    with col2:
-        st.markdown("### 🧮 Test Results")
-        st.info("Select columns on the left and click 'Analyze A/B Test'.")
-def show_database():
-    st.markdown("## 💾 Database Connection & SQL")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 🔗 Database Setup")
-        
-        db_type = st.selectbox("Database Type", ["SQLite", "PostgreSQL", "MySQL"])
-        
-        # Загрузка файлов
-        uploaded_files = st.file_uploader(
-            "Upload CSV files",
-            type=['csv'],
-            accept_multiple_files=True
+        selected_features = st.multiselect(
+            "Select features", 
+            numeric_cols, 
+            default=numeric_cols
         )
         
-        if uploaded_files and st.button("📁 Load Files to Database"):
-            conn = sqlite3.connect('uploaded_data.db')
-            for uploaded_file in uploaded_files:
-                df = pd.read_csv(uploaded_file)
-                table_name = uploaded_file.name.replace('.csv', '').replace(' ', '_').lower()
-                df.to_sql(table_name, conn, if_exists='replace', index=False)
-                st.success(f"Loaded {uploaded_file.name} as table '{table_name}'")
-            conn.close()
+        if len(selected_features) >= 2 and st.button("🔍 Perform PCA"):
+            with st.spinner("Performing PCA analysis..."):
+                # Data preparation
+                X = df[selected_features].dropna()
+                
+                # Normalization
+                scaler = StandardScaler()
+                X_scaled = scaler.fit_transform(X)
+                
+                # PCA
+                pca = PCA()
+                X_pca = pca.fit_transform(X_scaled)
+                
+                # Explained variance
+                explained_variance = pca.explained_variance_ratio_
+                cumulative_variance = np.cumsum(explained_variance)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Scree plot
+                    fig_scree = px.bar(
+                        x=range(1, len(explained_variance) + 1),
+                        y=explained_variance,
+                        title="Explained Variance by Component",
+                        labels={'x': 'Principal Component', 'y': 'Explained Variance'}
+                    )
+                    st.plotly_chart(fig_scree, use_container_width=True)
+                
+                with col2:
+                    # Cumulative explained variance
+                    fig_cum = px.line(
+                        x=range(1, len(cumulative_variance) + 1),
+                        y=cumulative_variance,
+                        title="Cumulative Explained Variance",
+                        labels={'x': 'Number of Components', 'y': 'Cumulative Variance'}
+                    )
+                    fig_cum.add_hline(y=0.95, line_dash="dash", line_color="red", 
+                                     annotation_text="95% variance")
+                    st.plotly_chart(fig_cum, use_container_width=True)
+                
+                # PCA scatter plot (first 2 components)
+                if len(X_pca) > 0:
+                    pca_df = pd.DataFrame({
+                        'PC1': X_pca[:, 0],
+                        'PC2': X_pca[:, 1] if X_pca.shape[1] > 1 else np.zeros(len(X_pca))
+                    })
+                    
+                    fig_scatter = px.scatter(
+                        pca_df, x='PC1', y='PC2',
+                        title=f"PCA: first 2 components (explain {cumulative_variance[1]*100:.1f}% variance)"
+                    )
+                    st.plotly_chart(fig_scatter, use_container_width=True)
+                
+                # Feature importance for first components
+                st.markdown("### 📊 Feature Contribution to Principal Components")
+                
+                components_df = pd.DataFrame(
+                    pca.components_[:min(3, len(pca.components_))].T,
+                    columns=[f'PC{i+1}' for i in range(min(3, len(pca.components_)))],
+                    index=selected_features
+                )
+                
+                fig_components = px.bar(
+                    components_df.reset_index().melt(id_vars='index'),
+                    x='index', y='value', color='variable',
+                    title="Feature Contribution to Principal Components",
+                    labels={'index': 'Features', 'value': 'Contribution', 'variable': 'Component'}
+                )
+                st.plotly_chart(fig_components, use_container_width=True)
+                
+                # Recommendations
+                components_95 = np.where(cumulative_variance >= 0.95)[0]
+                if len(components_95) > 0:
+                    n_components_95 = components_95[0] + 1
+                    st.info(f"💡 To explain 95% variance, {n_components_95} components out of {len(selected_features)} are sufficient")
+                    
+                    reduction_pct = (1 - n_components_95/len(selected_features)) * 100
+                    st.success(f"🎯 Possible dimensionality reduction by {reduction_pct:.1f}%")
+    
+    elif ml_type == "🔍 Anomaly Detection":
+        st.markdown("### 🔍 Anomaly Detection")
         
-        if db_type == "SQLite":
-            if st.button("📁 Create Sample Database"):
-                create_sample_database()
-                st.success("Sample SQLite database created!")
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            selected_features = st.multiselect(
+                "Select features", 
+                numeric_cols, 
+                default=numeric_cols[:min(3, len(numeric_cols))]
+            )
+        
+        with col2:
+            method = st.selectbox("Method", ["Isolation Forest", "Local Outlier Factor", "One-Class SVM"])
+            contamination = st.slider("Anomaly fraction", 0.01, 0.3, 0.1)
+        
+        if len(selected_features) >= 1 and st.button("🔍 Find Anomalies"):
+            with st.spinner("Searching for anomalies..."):
+                # Data preparation
+                X = df[selected_features].dropna()
+                
+                # Normalization
+                scaler = StandardScaler()
+                X_scaled = scaler.fit_transform(X)
+                
+                # Anomaly detection
+                if method == "Isolation Forest":
+                    from sklearn.ensemble import IsolationForest
+                    detector = IsolationForest(contamination=contamination, random_state=42)
+                elif method == "Local Outlier Factor":
+                    from sklearn.neighbors import LocalOutlierFactor
+                    detector = LocalOutlierFactor(contamination=contamination)
+                elif method == "One-Class SVM":
+                    from sklearn.svm import OneClassSVM
+                    detector = OneClassSVM(gamma='scale', nu=contamination)
+                
+                if method == "Local Outlier Factor":
+                    anomaly_labels = detector.fit_predict(X_scaled)
+                else:
+                    anomaly_labels = detector.fit_predict(X_scaled)
+                
+                # Create DataFrame with results
+                results_df = X.copy()
+                results_df['Anomaly'] = anomaly_labels == -1
+                results_df['Type'] = results_df['Anomaly'].map({True: 'Anomaly', False: 'Normal'})
+                
+                # Visualization
+                if len(selected_features) >= 2:
+                    fig = px.scatter(
+                        results_df,
+                        x=selected_features[0],
+                        y=selected_features[1],
+                        color='Type',
+                        title=f"Anomaly Detection: {method}",
+                        color_discrete_map={'Normal': 'blue', 'Anomaly': 'red'}
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Statistics
+                n_anomalies = sum(anomaly_labels == -1)
+                anomaly_pct = (n_anomalies / len(X)) * 100
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total points", len(X))
+                with col2:
+                    st.metric("Anomalies found", n_anomalies)
+                with col3:
+                    st.metric("Anomaly percentage", f"{anomaly_pct:.2f}%")
+                
+                # Show top anomalies
+                if n_anomalies > 0:
+                    st.markdown("### 🚨 Top-10 Anomalies")
+                    anomalies = results_df[results_df['Anomaly']].head(10)
+                    st.dataframe(anomalies[selected_features])
+                    
+                    # Anomaly analysis
+                    st.markdown("### 📊 Anomaly Characteristics")
+                    for feature in selected_features:
+                        normal_mean = results_df[~results_df['Anomaly']][feature].mean()
+                        anomaly_mean = results_df[results_df['Anomaly']][feature].mean()
+                        
+                        if not pd.isna(anomaly_mean) and not pd.isna(normal_mean):
+                            diff_pct = ((anomaly_mean - normal_mean) / normal_mean) * 100
+                            if abs(diff_pct) > 5:
+                                direction = "higher" if diff_pct > 0 else "lower"
+                                st.write(f"• **{feature}**: anomalies on average {direction} by {abs(diff_pct):.1f}%")
+
+def show_ab_testing():
+    st.markdown("## 🧪 A/B Testing")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### 🎲 Generate Test Data")
+        if st.button("📊 Create A/B Test Data"):
+            ab_data = generate_ab_test_data()
+            st.session_state.data = ab_data
+            st.success("A/B test data created!")
+            st.rerun()
+    
+    if 'data' not in st.session_state:
+        st.warning("📂 Load data or create A/B test data")
+        return
+    
+    df = st.session_state.data
+    
+    with col2:
+        st.markdown("### ⚙️ Test Configuration")
+        
+        # Automatic detection of group and metric
+        group_cols = [col for col in df.columns if 'group' in col.lower() or 'variant' in col.lower() or 'test' in col.lower()]
+        metric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if group_cols:
+            group_col = st.selectbox("Group column", group_cols, index=0)
+        else:
+            group_col = st.selectbox("Group column", df.columns)
+        
+        if metric_cols:
+            metric_col = st.selectbox("Metric for analysis", metric_cols, index=0)
+        else:
+            metric_col = st.selectbox("Metric for analysis", df.columns)
+    
+    if st.button("🧪 Conduct A/B Test Analysis"):
+        try:
+            with st.spinner("Analyzing A/B test..."):
+                # Data preparation
+                test_data = df[[group_col, metric_col]].dropna()
+                
+                # Get unique groups
+                groups = test_data[group_col].unique()
+                
+                if len(groups) != 2:
+                    st.warning(f"⚠️ Found {len(groups)} groups. A/B test works with 2 groups.")
+                    st.write("Available groups:", groups)
+                    
+                    # Take first 2 groups
+                    if len(groups) > 2:
+                        groups = groups[:2]
+                        test_data = test_data[test_data[group_col].isin(groups)]
+                        st.info(f"Analyzing groups: {groups[0]} vs {groups[1]}")
+                
+                # Split into control and treatment groups
+                control = test_data[test_data[group_col] == groups[0]][metric_col]
+                treatment = test_data[test_data[group_col] == groups[1]][metric_col]
+                
+                # Basic statistics
+                control_mean = control.mean()
+                treatment_mean = treatment.mean()
+                control_std = control.std()
+                treatment_std = treatment.std()
+                
+                # Statistical tests
+                # T-test
+                t_stat, p_value_ttest = stats.ttest_ind(control, treatment, equal_var=False)
+                
+                # Mann-Whitney U test (non-parametric)
+                u_stat, p_value_mannwhitney = stats.mannwhitneyu(control, treatment, alternative='two-sided')
+                
+                # Effect (difference of means)
+                effect = treatment_mean - control_mean
+                effect_pct = (effect / control_mean) * 100 if control_mean != 0 else 0
+                
+                # Cohen's d (effect size)
+                pooled_std = np.sqrt(((len(control) - 1) * control_std**2 + (len(treatment) - 1) * treatment_std**2) / (len(control) + len(treatment) - 2))
+                cohens_d = effect / pooled_std if pooled_std != 0 else 0
+                
+                # Display results
+                st.markdown("### 📊 A/B Test Results")
+                
+                # Group metrics
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric(f"{groups[0]} (mean)", f"{control_mean:.3f}")
+                with col2:
+                    st.metric(f"{groups[1]} (mean)", f"{treatment_mean:.3f}")
+                with col3:
+                    st.metric("Difference", f"{effect:.3f}")
+                with col4:
+                    st.metric("Change %", f"{effect_pct:+.2f}%")
+                
+                # Statistical significance
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("P-value (t-test)", f"{p_value_ttest:.4f}")
+                with col2:
+                    st.metric("P-value (Mann-Whitney)", f"{p_value_mannwhitney:.4f}")
+                with col3:
+                    st.metric("Cohen's d", f"{cohens_d:.3f}")
+                
+                # Results interpretation
+                alpha = 0.05
+                
+                if p_value_ttest < alpha:
+                    st.success("🎉 Statistically significant difference! (t-test)")
+                else:
+                    st.warning("❌ Difference is not statistically significant (t-test)")
+                
+                if p_value_mannwhitney < alpha:
+                    st.success("🎉 Statistically significant difference! (Mann-Whitney)")
+                else:
+                    st.warning("❌ Difference is not statistically significant (Mann-Whitney)")
+                
+                # Effect size
+                if abs(cohens_d) < 0.2:
+                    effect_size = "small"
+                elif abs(cohens_d) < 0.5:
+                    effect_size = "medium"
+                elif abs(cohens_d) < 0.8:
+                    effect_size = "large"
+                else:
+                    effect_size = "very large"
+                
+                st.info(f"📏 Effect size: {effect_size} (Cohen's d = {cohens_d:.3f})")
+                
+                # Visualization
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Box plot
+                    fig_box = px.box(test_data, x=group_col, y=metric_col, 
+                                    title=f"Distribution of {metric_col} by Groups")
+                    st.plotly_chart(fig_box, use_container_width=True)
+                
+                with col2:
+                    # Histogram
+                    fig_hist = go.Figure()
+                    
+                    fig_hist.add_trace(go.Histogram(
+                        x=control,
+                        name=f"{groups[0]}",
+                        opacity=0.7,
+                        nbinsx=30
+                    ))
+                    
+                    fig_hist.add_trace(go.Histogram(
+                        x=treatment,
+                        name=f"{groups[1]}",
+                        opacity=0.7,
+                        nbinsx=30
+                    ))
+                    
+                    fig_hist.update_layout(
+                        title="Group Distributions",
+                        xaxis_title=metric_col,
+                        yaxis_title="Frequency",
+                        barmode='overlay'
+                    )
+                    
+                    st.plotly_chart(fig_hist, use_container_width=True)
+                
+                # Statistical power and sample size
+                st.markdown("### 📈 Statistical Power Analysis")
+                
+                from scipy.stats import norm
+                
+                # Current power
+                pooled_se = np.sqrt(control_std**2/len(control) + treatment_std**2/len(treatment))
+                z_score = abs(effect) / pooled_se if pooled_se != 0 else 0
+                current_power = 1 - norm.cdf(1.96 - z_score) + norm.cdf(-1.96 - z_score)
+                
+                st.metric("Statistical Power", f"{current_power:.3f}")
+                
+                if current_power >= 0.8:
+                    st.success("✅ Sufficient statistical power (≥0.8)")
+                else:
+                    st.warning(f"⚠️ Low statistical power. Recommended ≥0.8")
+                
+                # Recommendations
+                st.markdown("### 💡 Recommendations")
+                
+                recommendations = []
+                
+                if p_value_ttest < 0.05 and abs(effect_pct) > 5:
+                    recommendations.append("🎯 Result is statistically significant and practically important")
+                elif p_value_ttest < 0.05:
+                    recommendations.append("📊 Result is statistically significant, but effect is small")
+                elif abs(effect_pct) > 10:
+                    recommendations.append("📈 Large practical effect, but need larger sample size")
+                else:
+                    recommendations.append("📋 No convincing evidence of effect")
+                
+                if current_power < 0.8:
+                    recommendations.append("📊 Increase sample size to improve power")
+                
+                if abs(cohens_d) >= 0.5:
+                    recommendations.append("💪 Medium or large effect size")
+                
+                for rec in recommendations:
+                    st.write(f"• {rec}")
+                
+        except Exception as e:
+            st.error(f"⚠️ Error in A/B test analysis: {str(e)}")
+
+def generate_ab_test_data():
+    """Generate realistic A/B test data"""
+    np.random.seed(42)
+    
+    n_control = 1000
+    n_treatment = 1000
+    
+    # Control group (~10% conversion)
+    control_data = {
+        'group': ['Control'] * n_control,
+        'user_id': range(1, n_control + 1),
+        'conversion_rate': np.random.beta(2, 18, n_control),  # ~10% conversion
+        'revenue': np.random.exponential(25, n_control),
+        'clicks': np.random.poisson(100, n_control),
+        'time_on_site': np.random.normal(120, 30, n_control),  # seconds
+        'pages_viewed': np.random.poisson(3, n_control)
+    }
+    
+    # Treatment group (~20% improvement)
+    treatment_data = {
+        'group': ['Treatment'] * n_treatment,
+        'user_id': range(n_control + 1, n_control + n_treatment + 1),
+        'conversion_rate': np.random.beta(2.4, 17.6, n_treatment),  # ~12% conversion
+        'revenue': np.random.exponential(30, n_treatment),  # higher revenue
+        'clicks': np.random.poisson(110, n_treatment),  # more clicks
+        'time_on_site': np.random.normal(140, 35, n_treatment),  # more time
+        'pages_viewed': np.random.poisson(3.5, n_treatment)  # more pages
+    }
+    
+    # Combine data
+    control_df = pd.DataFrame(control_data)
+    treatment_df = pd.DataFrame(treatment_data)
+    
+    return pd.concat([control_df, treatment_df], ignore_index=True)
+
+def show_database():
+    st.markdown("## 💾 Database and SQL")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 🔗 Database Management")
+        
+        # Load CSV files into database
+        uploaded_files = st.file_uploader(
+            "Upload CSV files to database",
+            type=['csv'],
+            accept_multiple_files=True,
+            help="Files will be loaded into SQLite database"
+        )
+        
+        if uploaded_files and st.button("📁 Load to DB"):
+            try:
+                conn = sqlite3.connect('uploaded_data.db')
+                loaded_tables = []
+                
+                for uploaded_file in uploaded_files:
+                    df = pd.read_csv(uploaded_file)
+                    table_name = uploaded_file.name.replace('.csv', '').replace(' ', '_').replace('-', '_').lower()
+                    
+                    # Clean table name from invalid characters
+                    table_name = ''.join(c for c in table_name if c.isalnum() or c == '_')
+                    
+                    df.to_sql(table_name, conn, if_exists='replace', index=False)
+                    loaded_tables.append(table_name)
+                    st.success(f"✅ {uploaded_file.name} → table '{table_name}'")
+                
+                conn.close()
+                st.session_state.db_tables = loaded_tables
+                
+            except Exception as e:
+                st.error(f"Database loading error: {str(e)}")
+        
+        # Create demo database
+        if st.button("🎲 Create Demo DB"):
+            create_sample_database()
+            st.success("Demo database created!")
         
         st.markdown("### ✏️ SQL Editor")
+        
+        # List available tables
+        if os.path.exists('uploaded_data.db') or os.path.exists('sample_data.db'):
+            try:
+                if os.path.exists('uploaded_data.db'):
+                    conn = sqlite3.connect('uploaded_data.db')
+                else:
+                    conn = sqlite3.connect('sample_data.db')
+                
+                tables_query = "SELECT name FROM sqlite_master WHERE type='table';"
+                tables_df = pd.read_sql_query(tables_query, conn)
+                
+                if not tables_df.empty:
+                    st.markdown("**Available tables:**")
+                    for table in tables_df['name']:
+                        # Show table structure
+                        structure_query = f"PRAGMA table_info({table});"
+                        structure = pd.read_sql_query(structure_query, conn)
+                        columns = ", ".join(structure['name'].tolist())
+                        st.write(f"• **{table}**: {columns}")
+                
+                conn.close()
+                
+            except Exception as e:
+                st.warning(f"Could not get table list: {e}")
+        
+        # SQL queries
+        default_queries = {
+            "Show all data": "SELECT * FROM sales LIMIT 10;",
+            "Group by regions": "SELECT region, COUNT(*) as count, AVG(amount) as avg_amount FROM sales GROUP BY region;",
+            "Top-5 by amount": "SELECT * FROM sales ORDER BY amount DESC LIMIT 5;",
+            "Statistics by date": "SELECT DATE(date) as day, COUNT(*) as transactions, SUM(amount) as total FROM sales GROUP BY DATE(date) ORDER BY day;"
+        }
+        
+        query_template = st.selectbox("Select query template", list(default_queries.keys()))
+        
         sql_query = st.text_area(
-            "Enter SQL Query",
-            value="SELECT * FROM sales LIMIT 10;",
+            "SQL Query",
+            value=default_queries[query_template],
             height=150,
             help="Write your SQL query here"
         )
         
         if st.button("▶️ Execute Query"):
             try:
-                # Проверяем есть ли загруженные данные
-                if os.path.exists('uploaded_data.db'):
-                    conn = sqlite3.connect('uploaded_data.db')
-                    result = pd.read_sql_query(sql_query, conn)
-                    conn.close()
-                else:
-                    result = execute_sql_query(sql_query)
-                
+                result = execute_sql_query(sql_query)
                 st.success("Query executed successfully!")
                 st.dataframe(result)
+                
+                # Show insights if result contains numeric data
+                numeric_cols = result.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    st.markdown("### 📊 Result Insights")
+                    show_query_insights(result)
+                    
             except Exception as e:
                 st.error(f"Query error: {str(e)}")
     
     with col2:
-        st.markdown("### 📊 Query Results")
+        st.markdown("### 📊 Quick Queries")
         
-        # Предустановленные запросы
-        st.markdown("### 🔍 Quick Queries")
-        
-        if st.button("📈 Total Sales"):
+        # Predefined analytical queries
+        if st.button("💰 Total Sales"):
             try:
-                if os.path.exists('uploaded_data.db'):
-                    conn = sqlite3.connect('uploaded_data.db')
-                    # Пробуем найти таблицу с колонкой amount
-                    tables = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
-                    for table in tables['name']:
-                        try:
-                            query = f"SELECT SUM(amount) as total_sales FROM {table};"
-                            result = pd.read_sql_query(query, conn)
-                            st.metric("Total Sales", f"${result.iloc[0, 0]:,.2f}")
-                            break
-                        except:
-                            continue
-                    conn.close()
-                else:
-                    query = "SELECT SUM(amount) as total_sales FROM sales;"
-                    result = execute_sql_query(query)
-                    st.metric("Total Sales", f"${result.iloc[0, 0]:,.2f}")
+                query = "SELECT SUM(amount) as total_sales FROM sales;"
+                result = execute_sql_query(query)
+                if not result.empty:
+                    total = result.iloc[0, 0]
+                    st.metric("Total Sales", f"${total:,.2f}")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
         
         if st.button("👥 Customers by Region"):
             try:
-                if os.path.exists('uploaded_data.db'):
-                    conn = sqlite3.connect('uploaded_data.db')
-                    tables = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table';", conn)
-                    for table in tables['name']:
-                        try:
-                            query = f"SELECT region, COUNT(*) as customers FROM {table} GROUP BY region;"
-                            result = pd.read_sql_query(query, conn)
-                            fig = px.bar(result, x='region', y='customers', title="Customers by Region")
-                            st.plotly_chart(fig, use_container_width=True)
-                            break
-                        except:
-                            continue
-                    conn.close()
-                else:
-                    query = "SELECT region, COUNT(*) as customers FROM sales GROUP BY region;"
-                    result = execute_sql_query(query)
-                    fig = px.bar(result, x='region', y='customers', title="Customers by Region")
+                query = "SELECT region, COUNT(DISTINCT customer_id) as customers FROM sales GROUP BY region ORDER BY customers DESC;"
+                result = execute_sql_query(query)
+                if not result.empty:
+                    fig = px.bar(result, x='region', y='customers', 
+                               title="Customers by Region")
                     st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+        
+        if st.button("📈 Sales by Day"):
+            try:
+                query = """
+                SELECT DATE(date) as day, 
+                       SUM(amount) as daily_sales,
+                       COUNT(*) as transactions 
+                FROM sales 
+                GROUP BY DATE(date) 
+                ORDER BY day;
+                """
+                result = execute_sql_query(query)
+                if not result.empty:
+                    fig = px.line(result, x='day', y='daily_sales', 
+                                title="Sales by Day")
+                    st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+        
+        if st.button("🔝 Top Products"):
+            try:
+                query = """
+                SELECT product_name, 
+                       SUM(amount) as total_revenue,
+                       COUNT(*) as sales_count
+                FROM sales 
+                GROUP BY product_name 
+                ORDER BY total_revenue DESC 
+                LIMIT 10;
+                """
+                result = execute_sql_query(query)
+                if not result.empty:
+                    st.dataframe(result)
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+def show_query_insights(result_df):
+    """Show insights from SQL query results"""
+    
+    if result_df.empty:
+        return
+    
+    numeric_cols = result_df.select_dtypes(include=[np.number]).columns
+    
+    if len(numeric_cols) > 0:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📊 Numeric Statistics")
+            for col in numeric_cols:
+                total = result_df[col].sum()
+                avg = result_df[col].mean()
+                max_val = result_df[col].max()
+                min_val = result_df[col].min()
+                
+                st.write(f"**{col}:**")
+                st.write(f"  • Sum: {total:,.2f}")
+                st.write(f"  • Average: {avg:.2f}")
+                st.write(f"  • Max: {max_val:,.2f}")
+                st.write(f"  • Min: {min_val:,.2f}")
+        
+        with col2:
+            # Simple visualization if possible
+            if len(result_df) <= 20:  # Small results
+                first_numeric = numeric_cols[0]
+                
+                if len(result_df.columns) >= 2:
+                    # Has categorical column for grouping
+                    cat_col = [col for col in result_df.columns if col not in numeric_cols]
+                    if cat_col:
+                        fig = px.bar(result_df, x=cat_col[0], y=first_numeric,
+                                   title=f"{first_numeric} by {cat_col[0]}")
+                        st.plotly_chart(fig, use_container_width=True)
+
+def execute_sql_query(query):
+    """Execute SQL query"""
+    try:
+        # First try uploaded_data.db
+        if os.path.exists('uploaded_data.db'):
+            conn = sqlite3.connect('uploaded_data.db')
+            result = pd.read_sql_query(query, conn)
+            conn.close()
+            return result
+        
+        # If not, try sample_data.db
+        elif os.path.exists('sample_data.db'):
+            conn = sqlite3.connect('sample_data.db')
+            result = pd.read_sql_query(query, conn)
+            conn.close()
+            return result
+        
+        else:
+            raise Exception("Database not found. Create demo DB or upload CSV files.")
+            
+    except Exception as e:
+        raise e
+
+def create_sample_database():
+    """Create demonstration database"""
+    
+    conn = sqlite3.connect('sample_data.db')
+    
+    # Create sales table
+    np.random.seed(42)
+    
+    # Generate realistic data
+    n_records = 1000
+    
+    regions = ['North', 'South', 'East', 'West', 'Central']
+    products = ['Laptop', 'Phone', 'Tablet', 'Watch', 'Headphones', 'Camera', 'TV', 'Speaker']
+    customers = [f'Customer_{i}' for i in range(1, 201)]
+    
+    sales_data = {
+        'id': range(1, n_records + 1),
+        'customer_id': np.random.choice(customers, n_records),
+        'product_name': np.random.choice(products, n_records),
+        'region': np.random.choice(regions, n_records),
+        'amount': np.random.exponential(100, n_records).round(2),
+        'date': pd.date_range('2024-01-01', periods=n_records, freq='H'),
+        'quantity': np.random.randint(1, 5, n_records),
+        'discount': np.random.uniform(0, 0.3, n_records).round(3)
+    }
+    
+    df = pd.DataFrame(sales_data)
+    
+    # Add calculated fields
+    df['total_amount'] = df['amount'] * df['quantity'] * (1 - df['discount'])
+    df['month'] = df['date'].dt.month
+    df['day_of_week'] = df['date'].dt.day_name()
+    
+    df.to_sql('sales', conn, if_exists='replace', index=False)
+    
+    # Create customers table
+    customer_data = {
+        'customer_id': customers,
+        'customer_name': [f'Name_{i}' for i in range(1, len(customers) + 1)],
+        'email': [f'customer{i}@email.com' for i in range(1, len(customers) + 1)],
+        'age': np.random.randint(18, 70, len(customers)),
+        'gender': np.random.choice(['M', 'F'], len(customers)),
+        'registration_date': pd.date_range('2023-01-01', periods=len(customers), freq='D'),
+        'loyalty_tier': np.random.choice(['Bronze', 'Silver', 'Gold', 'Platinum'], len(customers))
+    }
+    
+    customers_df = pd.DataFrame(customer_data)
+    customers_df.to_sql('customers', conn, if_exists='replace', index=False)
+    
+    conn.close()
+
 def show_reports():
-    st.markdown("## 📄 Automated Reports")
+    st.markdown("## 📄 Report Generation")
     
     if 'data' not in st.session_state:
-        st.warning("Please upload data first!")
+        st.warning("📂 Please load data first!")
         return
     
     df = st.session_state.data
@@ -859,32 +1523,38 @@ def show_reports():
         
         report_type = st.selectbox(
             "Report Type",
-            ["📈 Executive Summary", "📊 Detailed Analysis", "🎯 Custom Report"]
+            ["📈 Brief Overview", "📊 Detailed Analysis", "🎯 Custom Report", "📋 Executive Summary"]
         )
         
-        include_charts = st.checkbox("Include Charts", value=True)
-        include_stats = st.checkbox("Include Statistics", value=True)
+        # Report settings
+        include_charts = st.checkbox("Include charts", value=True)
+        include_stats = st.checkbox("Include statistics", value=True)
+        include_correlations = st.checkbox("Include correlations", value=True)
+        include_outliers = st.checkbox("Include outlier analysis", value=False)
         
         if st.button("📄 Generate Report"):
-            if report_type == "📈 Executive Summary":
-                report_content = generate_executive_summary(df)
-            elif report_type == "📊 Detailed Analysis":
-                report_content = generate_detailed_analysis(df)
-            else:
-                report_content = generate_custom_report(df)
-            
-            st.markdown("### 📋 Report Preview")
-            st.markdown(report_content)
+            with st.spinner("Generating report..."):
+                if report_type == "📈 Brief Overview":
+                    report_content = generate_executive_summary(df)
+                elif report_type == "📊 Detailed Analysis":
+                    report_content = generate_detailed_analysis(df, include_charts, include_stats, include_correlations)
+                elif report_type == "📋 Executive Summary":
+                    report_content = generate_business_summary(df)
+                else:
+                    report_content = generate_custom_report(df, include_charts, include_stats, include_correlations, include_outliers)
+                
+                st.markdown("### 📋 Report Preview")
+                st.markdown(report_content)
     
     with col2:
-        st.markdown("### 💾 Export Options")
+        st.markdown("### 💾 Data Export")
         
         if st.button("📥 Download CSV"):
             csv = df.to_csv(index=False)
             st.download_button(
-                label="Download data as CSV",
+                label="💾 Download as CSV",
                 data=csv,
-                file_name='data_export.csv',
+                file_name=f'data_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
                 mime='text/csv'
             )
         
@@ -892,813 +1562,516 @@ def show_reports():
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, sheet_name='Data', index=False)
+                
+                # Add statistics sheet
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    stats_df = df[numeric_cols].describe()
+                    stats_df.to_excel(writer, sheet_name='Statistics')
+                
             excel_data = output.getvalue()
             
             st.download_button(
-                label="Download as Excel",
+                label="💾 Download as Excel",
                 data=excel_data,
-                file_name='data_export.xlsx',
+                file_name=f'data_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx',
                 mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-
-def show_dashboard_builder():
-    st.markdown("## 🎨 Dashboard Builder")
-    
-    if 'data' not in st.session_state:
-        st.warning("Please upload data first!")
-        return
-    
-    df = st.session_state.data
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    text_cols = df.select_dtypes(include=['object']).columns.tolist()
-    
-    # Sidebar для конфигурации
-    with st.sidebar:
-        st.markdown("### 🛠️ Dashboard Configuration")
         
-        # Настройки дашборда
-        dashboard_title = st.text_input("Dashboard Title", "My Analytics Dashboard")
-        dashboard_theme = st.selectbox("Theme", ["Light", "Dark", "Corporate", "Modern"])
-        layout_cols = st.selectbox("Layout", ["1 Column", "2 Columns", "3 Columns", "Grid"])
-        
-        st.markdown("### 📊 Available Widgets")
-        
-        # Инициализация виджетов в session_state
-        if 'dashboard_widgets' not in st.session_state:
-            st.session_state.dashboard_widgets = []
-        
-        # Добавление виджетов
-        widget_type = st.selectbox("Choose Widget", [
-            "📈 Line Chart",
-            "📊 Bar Chart", 
-            "🔢 Metric Card",
-            "📋 Data Table",
-            "🥧 Pie Chart",
-            "📊 3D Scatter Plot",
-            "🚨 Outlier Detection",
-            "🗺️ Leaflet Map"
-        ])
-        
-        if st.button("➕ Add Widget"):
-            widget_config = create_widget_config(widget_type, df, numeric_cols, text_cols)
-            if widget_config:
-                st.session_state.dashboard_widgets.append(widget_config)
-                st.success(f"Added {widget_type}!")
-        
-        # Управление виджетами
-        if st.session_state.dashboard_widgets:
-            st.markdown("### 🗂️ Manage Widgets")
-            
-            for i, widget in enumerate(st.session_state.dashboard_widgets):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(f"{i+1}. {widget['type']}")
-                with col2:
-                    if st.button("🗑️", key=f"delete_{i}"):
-                        st.session_state.dashboard_widgets.pop(i)
-                        st.rerun()
-    
-    # Основная область дашборда
-    st.markdown(f"# {dashboard_title}")
-    
-    # Применение темы
-    apply_dashboard_theme(dashboard_theme)
-    
-    # Отображение виджетов
-    if st.session_state.dashboard_widgets:
-        render_dashboard_widgets(st.session_state.dashboard_widgets, df, layout_cols)
-    else:
-        st.info("👈 Add widgets from the sidebar to build your dashboard!")
-        
-        # Показать пример дашборда
-        if st.button("🎯 Load Example Dashboard"):
-            st.session_state.dashboard_widgets = create_example_dashboard(df, numeric_cols)
-            st.rerun()
-
-def create_widget_config(widget_type, df, numeric_cols, text_cols):
-    """Создание конфигурации виджета"""
-    
-    if widget_type == "📈 Line Chart":
-        if len(numeric_cols) == 0:
-            st.error("No numeric columns available!")
-            return None
-        return {
-            'type': widget_type,
-            'title': 'Line Chart',
-            'y_column': numeric_cols[0],
-            'color': '#1f77b4',
-            'show_points': True
-        }
-    
-    elif widget_type == "📊 Bar Chart":
-        if len(numeric_cols) == 0:
-            st.error("No numeric columns available!")
-            return None
-        return {
-            'type': widget_type,
-            'title': 'Bar Chart',
-            'y_column': numeric_cols[0],
-            'color': '#ff7f0e'
-        }
-    
-    elif widget_type == "🔢 Metric Card":
-        if len(numeric_cols) == 0:
-            st.error("No numeric columns available!")
-            return None
-        return {
-            'type': widget_type,
-            'title': 'Total',
-            'column': numeric_cols[0],
-            'aggregation': 'Sum',
-            'format': 'Number'
-        }
-    
-    elif widget_type == "🥧 Pie Chart":
-        if len(text_cols) == 0:
-            st.error("No categorical columns available!")
-            return None
-        return {
-            'type': widget_type,
-            'title': 'Distribution',
-            'category_column': text_cols[0]
-        }
-    
-    elif widget_type == "📋 Data Table":
-        return {
-            'type': widget_type,
-            'title': 'Data Table',
-            'columns': df.columns.tolist()[:5],
-            'max_rows': 10
-        }
-    
-    elif widget_type == "📊 3D Scatter Plot":
-        if len(numeric_cols) < 3:
-            st.error("Need at least 3 numeric columns for 3D scatter!")
-            return None
-        return {
-            'type': widget_type,
-            'title': '3D Scatter Plot',
-            'x_column': numeric_cols[0],
-            'y_column': numeric_cols[1],
-            'z_column': numeric_cols[2],
-            'color_by': 'None',
-            'point_size': 8
-        }
-    
-    elif widget_type == "🚨 Outlier Detection":
-        if len(numeric_cols) == 0:
-            st.error("No numeric columns available!")
-            return None
-        return {
-            'type': widget_type,
-            'title': 'Outlier Analysis',
-            'column': numeric_cols[0],
-            'method': 'IQR (Interquartile Range)',
-            'sensitivity': 1.5,
-            'show_stats': True
-        }
-    
-    elif widget_type == "🗺️ Leaflet Map":
-        return {
-            'type': widget_type,
-            'title': 'Interactive Map',
-            'center_lat': 31.7683,  # Jerusalem
-            'center_lon': 35.2137,
-            'zoom': 10,
-            'search_enabled': True
-        }
-    
-    return None
-
-def render_dashboard_widgets(widgets, df, layout):
-    """Отображение виджетов на дашборде"""
-    
-    if layout == "1 Column":
-        for widget in widgets:
-            render_single_widget(widget, df)
-    
-    elif layout == "2 Columns":
-        cols = st.columns(2)
-        for i, widget in enumerate(widgets):
-            with cols[i % 2]:
-                render_single_widget(widget, df)
-    
-    elif layout == "3 Columns":
-        cols = st.columns(3)
-        for i, widget in enumerate(widgets):
-            with cols[i % 3]:
-                render_single_widget(widget, df)
-    
-    elif layout == "Grid":
-        # Grid layout - 2x2, 2x3, etc.
-        rows_needed = (len(widgets) + 1) // 2
-        for row in range(rows_needed):
-            cols = st.columns(2)
-            for col_idx in range(2):
-                widget_idx = row * 2 + col_idx
-                if widget_idx < len(widgets):
-                    with cols[col_idx]:
-                        render_single_widget(widgets[widget_idx], df)
-
-def render_single_widget(widget, df):
-    """Отображение одного виджета"""
-    
-    try:
-        if widget['type'] == "📈 Line Chart":
-            st.markdown(f"### {widget['title']}")
-            fig = px.line(df, y=widget['y_column'], title=widget['title'])
-            fig.update_traces(line_color=widget['color'])
-            if widget['show_points']:
-                fig.update_traces(mode='lines+markers')
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif widget['type'] == "📊 Bar Chart":
-            st.markdown(f"### {widget['title']}")
-            fig = px.bar(df, y=widget['y_column'], title=widget['title'])
-            fig.update_traces(marker_color=widget['color'])
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif widget['type'] == "🔢 Metric Card":
-            col = widget['column']
-            agg = widget['aggregation']
-            
-            if agg == "Sum":
-                value = df[col].sum()
-            elif agg == "Mean":
-                value = df[col].mean()
-            elif agg == "Count":
-                value = df[col].count()
-            elif agg == "Max":
-                value = df[col].max()
-            elif agg == "Min":
-                value = df[col].min()
-            
-            # Форматирование
-            if widget['format'] == "Currency":
-                formatted_value = f"${value:,.2f}"
-            elif widget['format'] == "Percentage":
-                formatted_value = f"{value:.2f}%"
-            else:
-                formatted_value = f"{value:,.2f}"
-            
-            st.metric(widget['title'], formatted_value)
-        
-        elif widget['type'] == "🥧 Pie Chart":
-            st.markdown(f"### {widget['title']}")
-            value_counts = df[widget['category_column']].value_counts()
-            fig = px.pie(values=value_counts.values, names=value_counts.index, title=widget['title'])
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif widget['type'] == "📋 Data Table":
-            st.markdown(f"### {widget['title']}")
-            show_df = df[widget['columns']].head(widget['max_rows'])
-            st.dataframe(show_df, use_container_width=True)
-        
-        elif widget['type'] == "📊 3D Scatter Plot":
-            st.markdown(f"### {widget['title']}")
-            plot_df = df[[widget['x_column'], widget['y_column'], widget['z_column']]].dropna()
-            fig = px.scatter_3d(
-                plot_df, 
-                x=widget['x_column'], 
-                y=widget['y_column'], 
-                z=widget['z_column'],
-                title=widget['title']
+        # Export report to text file
+        if 'report_content' in locals():
+            st.download_button(
+                label="📄 Download Report",
+                data=report_content,
+                file_name=f'report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.md',
+                mime='text/markdown'
             )
-            fig.update_traces(marker=dict(size=widget['point_size']))
-            st.plotly_chart(fig, use_container_width=True)
-        
-        elif widget['type'] == "🚨 Outlier Detection":
-            st.markdown(f"### {widget['title']}")
-            column_data = df[widget['column']].dropna()
-            outliers_idx, outlier_info = detect_outliers(column_data, widget['method'], widget['sensitivity'])
-            
-            # Box plot с выбросами
-            fig_box = px.box(y=column_data, title=f"Outliers - {widget['column']}")
-            
-            if len(outliers_idx) > 0:
-                outlier_values = column_data.loc[outliers_idx]
-                fig_box.add_scatter(
-                    y=outlier_values,
-                    mode='markers',
-                    marker=dict(color='red', size=8),
-                    name='Outliers'
-                )
-            
-            st.plotly_chart(fig_box, use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Points", len(column_data))
-            with col2:
-                st.metric("Outliers Found", len(outliers_idx))
-        
-        elif widget['type'] == "🗺️ Leaflet Map":
-            st.markdown(f"### {widget['title']}")
-            
-            # Поиск места
-            if widget.get('search_enabled', True):
-                search_query = st.text_input("🔍 Search location", 
-                                           placeholder="Enter city, address, or landmark...",
-                                           key=f"search_{id(widget)}")
-                
-                if search_query and st.button("🌍 Find Location", key=f"find_{id(widget)}"):
-                    coords = geocode_location(search_query)
-                    if coords:
-                        widget['center_lat'] = coords[0]
-                        widget['center_lon'] = coords[1]
-                        st.success(f"Found: {search_query}")
-            
-            # Создание карты
-            m = folium.Map(
-                location=[widget['center_lat'], widget['center_lon']],
-                zoom_start=widget['zoom'],
-                tiles='OpenStreetMap'
-            )
-            
-            # Добавление маркера
-            folium.Marker(
-                [widget['center_lat'], widget['center_lon']],
-                popup=f"📍 {widget['title']}",
-                tooltip="Click for info",
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-            
-            # Если есть данные - добавляем точки
-            add_data_points_to_map(m, df)
-            
-            # Отображение карты
-            map_data = st_folium(m, width=700, height=400, key=f"map_{id(widget)}")
-            
-            # Показать координаты клика
-            if map_data['last_clicked']:
-                lat = map_data['last_clicked']['lat']
-                lng = map_data['last_clicked']['lng']
-                st.info(f"📍 Clicked: {lat:.4f}, {lng:.4f}")
-    
-    except Exception as e:
-        st.error(f"Error rendering widget: {str(e)}")
 
-def apply_dashboard_theme(theme):
-    """Применение темы к дашборду"""
+def generate_business_summary(df):
+    """Generate business summary"""
     
-    if theme == "Dark":
-        st.markdown("""
-        <style>
-            .stApp { background-color: #0e1117; }
-            .metric-card { background: #262730; }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    elif theme == "Corporate":
-        st.markdown("""
-        <style>
-            .stApp { background-color: #f8f9fa; }
-            .metric-card { 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 1rem;
-                border-radius: 10px;
-                margin: 0.5rem 0;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    elif theme == "Modern":
-        st.markdown("""
-        <style>
-            .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-            .stWidget { background-color: rgba(255,255,255,0.9); border-radius: 10px; }
-        </style>
-        """, unsafe_allow_html=True)
-
-def create_example_dashboard(df, numeric_cols):
-    """Создание примера дашборда"""
-    
-    example_widgets = []
-    
-    if len(numeric_cols) > 0:
-        # Metric card
-        example_widgets.append({
-            'type': '🔢 Metric Card',
-            'title': 'Total Records',
-            'column': numeric_cols[0],
-            'aggregation': 'Count',
-            'format': 'Number'
-        })
-        
-        # Line chart
-        example_widgets.append({
-            'type': '📈 Line Chart',
-            'title': 'Trend Analysis',
-            'y_column': numeric_cols[0],
-            'color': '#1f77b4',
-            'show_points': True
-        })
-        
-        # Leaflet Map
-        example_widgets.append({
-            'type': '🗺️ Leaflet Map',
-            'title': 'Location Map',
-            'center_lat': 31.7683,
-            'center_lon': 35.2137,
-            'zoom': 10,
-            'search_enabled': True
-        })
-        
-        # Outlier detection
-        example_widgets.append({
-            'type': '🚨 Outlier Detection',
-            'title': 'Anomaly Detection',
-            'column': numeric_cols[0],
-            'method': 'IQR (Interquartile Range)',
-            'sensitivity': 1.5,
-            'show_stats': True
-        })
-        
-        # 3D Scatter если есть достаточно колонок
-        if len(numeric_cols) >= 3:
-            example_widgets.append({
-                'type': '📊 3D Scatter Plot',
-                'title': '3D Analysis',
-                'x_column': numeric_cols[0],
-                'y_column': numeric_cols[1], 
-                'z_column': numeric_cols[2],
-                'color_by': 'None',
-                'point_size': 8
-            })
-        
-        # Data table
-        example_widgets.append({
-            'type': '📋 Data Table',
-            'title': 'Data Preview',
-            'columns': df.columns.tolist()[:4],
-            'max_rows': 5
-        })
-    
-    return example_widgets
-
-def detect_outliers(data, method="IQR (Interquartile Range)", sensitivity=1.5):
-    """Детекция выбросов различными методами"""
-    
-    outliers_idx = []
-    info = {}
-    
-    if method == "IQR (Interquartile Range)":
-        Q1 = data.quantile(0.25)
-        Q3 = data.quantile(0.75)
-        IQR = Q3 - Q1
-        
-        lower_bound = Q1 - sensitivity * IQR
-        upper_bound = Q3 + sensitivity * IQR
-        
-        outliers_idx = data[(data < lower_bound) | (data > upper_bound)].index.tolist()
-        
-        info = {
-            'method': 'IQR',
-            'lower_bound': lower_bound,
-            'upper_bound': upper_bound,
-            'Q1': Q1,
-            'Q3': Q3,
-            'IQR': IQR
-        }
-    
-    elif method == "Z-Score":
-        z_scores = np.abs((data - data.mean()) / data.std())
-        outliers_idx = data[z_scores > sensitivity].index.tolist()
-        
-        info = {
-            'method': 'Z-Score',
-            'threshold': sensitivity,
-            'mean': data.mean(),
-            'std': data.std()
-        }
-    
-    return outliers_idx, info
-
-# Вспомогательные функции
-def create_demo_data():
-    np.random.seed(42)
-    data = {
-        'Date': pd.date_range('2024-01-01', periods=100),
-        'Sales': np.random.normal(1000, 200, 100),
-        'Customers': np.random.poisson(30, 100),
-        'Revenue': np.random.normal(5000, 1000, 100),
-        'Region': np.random.choice(['North', 'South', 'East', 'West'], 100)
-    }
-    return pd.DataFrame(data)
-
-def create_ecommerce_data():
-    np.random.seed(123)
-    data = {
-        'user_id': range(1, 1001),
-        'age': np.random.randint(18, 65, 1000),
-        'gender': np.random.choice(['M', 'F'], 1000),
-        'purchase_amount': np.random.exponential(50, 1000),
-        'category': np.random.choice(['Electronics', 'Clothing', 'Books', 'Home'], 1000),
-        'satisfaction': np.random.randint(1, 6, 1000)
-    }
-    return pd.DataFrame(data)
-
-def auto_analyze_data():
-    if 'data' not in st.session_state:
-        return
-    
-    df = st.session_state.data
-    
-    st.markdown("### 🔍 Auto Analysis Results")
-    
-    # Основная статистика
-    st.markdown("#### 📊 Dataset Overview")
-    st.write(f"Rows: {len(df)}, Columns: {len(df.columns)}")
-    
-    # Пропущенные значения
-    missing = df.isnull().sum()
-    if missing.sum() > 0:
-        st.warning(f"Found {missing.sum()} missing values")
-    
-    # Корреляции
     numeric_cols = df.select_dtypes(include=[np.number]).columns
-    if len(numeric_cols) > 1:
-        corr = df[numeric_cols].corr()
-        high_corr = np.where(np.abs(corr) > 0.7)
-        if len(high_corr[0]) > len(numeric_cols):  # исключаем диагональ
-            st.info("Found high correlations between variables")
-
-def calculate_data_quality(df):
-    score = 10.0
-    
-    # Пропущенные значения
-    missing_pct = df.isnull().sum().sum() / (len(df) * len(df.columns))
-    score -= missing_pct * 5
-    
-    # Дубликаты
-    duplicate_pct = df.duplicated().sum() / len(df)
-    score -= duplicate_pct * 3
-    
-    return max(0, score)
-
-def fill_missing_values(df):
-    df_filled = df.copy()
-    
-    for col in df_filled.columns:
-        if df_filled[col].dtype in ['float64', 'int64']:
-            df_filled[col] = df_filled[col].fillna(df_filled[col].median())
-        else:
-            df_filled[col] = df_filled[col].fillna(df_filled[col].mode()[0] if not df_filled[col].mode().empty else 'Unknown')
-    
-    return df_filled
-
-def show_world_map():
-    st.markdown("### 🌍 Interactive World Map")
-    world_data = create_world_map_data()
-    map_type = st.selectbox("Map Type", ["🌍 Countries", "🏙️ Cities"])
-    
-    if map_type == "🌍 Countries":
-        fig_map = px.choropleth(
-            world_data['countries'], 
-            locations="iso_alpha",
-            color="value",
-            hover_name="country",
-            color_continuous_scale="Viridis",
-            title="World Data by Countries"
-        )
-        st.plotly_chart(fig_map, use_container_width=True)
-        
-    elif map_type == "🏙️ Cities":
-        fig_map = px.scatter_geo(
-            world_data['cities'],
-            lat="lat",
-            lon="lon",
-            color="population",
-            size="population",
-            hover_name="city",
-            title="Major Cities Population",
-            color_continuous_scale="Plasma"
-        )
-        st.plotly_chart(fig_map, use_container_width=True)
-
-def create_world_map_data():
-    countries_data = {
-        'country': ['USA', 'China', 'Germany', 'Japan', 'UK', 'France', 'India', 'Brazil', 'Canada', 'Australia', 'Israel', 'Ukraine'],
-        'iso_alpha': ['USA', 'CHN', 'DEU', 'JPN', 'GBR', 'FRA', 'IND', 'BRA', 'CAN', 'AUS', 'ISR', 'UKR'],
-        'value': [331, 1439, 83, 126, 67, 67, 1380, 213, 38, 25, 9.4, 41.1]
-    }
-    
-    cities_data = {
-        'city': ['New York', 'London', 'Tokyo', 'Paris', 'Sydney', 'Moscow', 'Dubai', 'Singapore', 'Berlin', 'Toronto', 'Tel Aviv', 'Jerusalem', 'Kyiv', 'Odesa'],
-        'lat': [40.7128, 51.5074, 35.6762, 48.8566, -33.8688, 55.7558, 25.2048, 1.3521, 52.5200, 43.6532, 32.0853, 31.7683, 50.4501, 46.4825],
-        'lon': [-74.0060, -0.1278, 139.6503, 2.3522, 151.2093, 37.6173, 55.2708, 103.8198, 13.4050, -79.3832, 34.7818, 35.2137, 30.5234, 30.7233],
-        'population': [8.4, 9.0, 13.9, 2.1, 5.3, 12.5, 3.4, 5.9, 3.7, 2.9, 0.46, 0.95, 2.95, 1.02]
-    }
-    
-    return {
-        'countries': pd.DataFrame(countries_data),
-        'cities': pd.DataFrame(cities_data)
-    }
-
-def generate_ab_test_data():
-    np.random.seed(42)
-    
-    # Control group
-    control = pd.DataFrame({
-        'group': 'Control',
-        'conversion_rate': np.random.beta(2, 18, 1000),  # ~10% conversion
-        'revenue': np.random.exponential(25, 1000),
-        'clicks': np.random.poisson(100, 1000)
-    })
-    
-    # Treatment group (slightly better)
-    treatment = pd.DataFrame({
-        'group': 'Treatment',
-        'conversion_rate': np.random.beta(2.5, 17.5, 1000),  # ~12.5% conversion
-        'revenue': np.random.exponential(30, 1000),
-        'clicks': np.random.poisson(110, 1000)
-    })
-    
-    return pd.concat([control, treatment], ignore_index=True)
-
-def analyze_ab_test(data, metric):
-    control = data[data['group'] == 'Control'][metric]
-    treatment = data[data['group'] == 'Treatment'][metric]
-    
-    # T-test
-    t_stat, p_value = stats.ttest_ind(control, treatment)
-    
-    return {
-        'control_mean': control.mean(),
-        'treatment_mean': treatment.mean(),
-        'p_value': p_value,
-        't_statistic': t_stat
-    }
-
-def create_sample_database():
-    conn = sqlite3.connect('sample_data.db')
-    
-    # Создаем таблицу продаж
-    sales_data = {
-        'id': range(1, 101),
-        'region': np.random.choice(['North', 'South', 'East', 'West'], 100),
-        'amount': np.random.exponential(100, 100),
-        'date': pd.date_range('2024-01-01', periods=100),
-        'customer_id': np.random.randint(1, 51, 100)
-    }
-    
-    df = pd.DataFrame(sales_data)
-    df.to_sql('sales', conn, if_exists='replace', index=False)
-    conn.close()
-
-def execute_sql_query(query):
-    try:
-        conn = sqlite3.connect('sample_data.db')
-        result = pd.read_sql_query(query, conn)
-        conn.close()
-        return result
-    except Exception as e:
-        raise e
-
-def generate_executive_summary(df):
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
     
     summary = f"""
 # 📊 Executive Summary
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
+
+## 🎯 Key Metrics
+
+**Data Overview:**
+- 📝 Total records: **{len(df):,}**
+- 📊 Number of metrics: **{len(df.columns)}**
+- 🔢 Numeric metrics: **{len(numeric_cols)}**
+- 📋 Categorical metrics: **{len(text_cols)}**
+
+## 💡 Main Findings
+
+"""
+    
+    # Data quality analysis
+    missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+    if missing_pct < 5:
+        summary += "✅ **High data quality** - less than 5% missing values\n\n"
+    elif missing_pct < 15:
+        summary += "⚠️ **Satisfactory data quality** - requires attention to missing values\n\n"
+    else:
+        summary += "❌ **Data cleaning required** - high percentage of missing values\n\n"
+    
+    # Numeric metrics analysis
+    if len(numeric_cols) > 0:
+        summary += "### 📈 Numeric Metrics\n\n"
+        
+        for col in numeric_cols[:5]:  # Top-5 metrics
+            col_stats = df[col].describe()
+            summary += f"**{col}:**\n"
+            summary += f"- Average value: {col_stats['mean']:.2f}\n"
+            summary += f"- Median: {col_stats['50%']:.2f}\n"
+            summary += f"- Range: {col_stats['min']:.2f} - {col_stats['max']:.2f}\n\n"
+    
+    # Correlation analysis
+    if len(numeric_cols) >= 2:
+        corr_matrix = df[numeric_cols].corr()
+        high_corr_pairs = []
+        
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = corr_matrix.iloc[i, j]
+                if abs(corr_val) > 0.7:
+                    high_corr_pairs.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
+        if high_corr_pairs:
+            summary += "### 🔗 Strong Relationships\n\n"
+            for var1, var2, corr in high_corr_pairs[:3]:  # Top-3 correlations
+                summary += f"- **{var1}** ↔ **{var2}**: {corr:.3f}\n"
+            summary += "\n"
+    
+    # Recommendations
+    summary += "## 🎯 Recommendations\n\n"
+    
+    recommendations = []
+    
+    if missing_pct > 10:
+        recommendations.append("🔧 Conduct data cleaning and handle missing values")
+    
+    if len(numeric_cols) >= 3:
+        recommendations.append("📊 Consider applying machine learning methods")
+    
+    if len(text_cols) > 0:
+        recommendations.append("📝 Conduct categorical variable analysis")
+    
+    if len(df) > 10000:
+        recommendations.append("⚡ Use optimization methods for big data")
+    
+    for i, rec in enumerate(recommendations, 1):
+        summary += f"{i}. {rec}\n"
+    
+    summary += f"\n---\n*Report generated by DataBot Analytics Pro*"
+    
+    return summary
+
+def generate_detailed_analysis(df, include_charts=True, include_stats=True, include_correlations=True):
+    """Generate detailed analysis"""
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
+    datetime_cols = df.select_dtypes(include=['datetime64']).columns
+    
+    analysis = f"""
+# 📈 Detailed Data Analysis
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
+
+## 📊 Dataset Overview
+
+### Basic Characteristics
+- **Total records**: {len(df):,}
+- **Number of columns**: {len(df.columns)}
+- **Memory size**: {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB
+
+### Data Types
+- **Numeric columns**: {len(numeric_cols)} ({', '.join(numeric_cols[:5])}{'...' if len(numeric_cols) > 5 else ''})
+- **Text columns**: {len(text_cols)} ({', '.join(text_cols[:5])}{'...' if len(text_cols) > 5 else ''})
+- **Datetime columns**: {len(datetime_cols)}
+
+## 🔍 Data Quality
+
+### Missing Value Analysis
+"""
+    
+    # Missing value analysis
+    missing_data = df.isnull().sum()
+    missing_pct = (missing_data / len(df)) * 100
+    
+    if missing_data.sum() > 0:
+        analysis += f"**Total missing values**: {missing_data.sum():,}\n\n"
+        analysis += "**Columns with missing values**:\n"
+        
+        for col in missing_data[missing_data > 0].index:
+            analysis += f"- {col}: {missing_data[col]} ({missing_pct[col]:.1f}%)\n"
+    else:
+        analysis += "✅ No missing values detected\n"
+    
+    analysis += "\n"
+    
+    # Duplicates
+    duplicates = df.duplicated().sum()
+    if duplicates > 0:
+        analysis += f"**Duplicates**: {duplicates} rows ({duplicates/len(df)*100:.1f}%)\n\n"
+    else:
+        analysis += "✅ No duplicates detected\n\n"
+    
+    # Statistical analysis
+    if include_stats and len(numeric_cols) > 0:
+        analysis += "## 📊 Statistical Analysis\n\n"
+        
+        for col in numeric_cols:
+            stats = df[col].describe()
+            analysis += f"### {col}\n"
+            analysis += f"- **Mean**: {stats['mean']:.3f}\n"
+            analysis += f"- **Median**: {stats['50%']:.3f}\n"
+            analysis += f"- **Standard deviation**: {stats['std']:.3f}\n"
+            analysis += f"- **Minimum**: {stats['min']:.3f}\n"
+            analysis += f"- **Maximum**: {stats['max']:.3f}\n"
+            analysis += f"- **Coefficient of variation**: {(stats['std']/stats['mean']*100):.1f}%\n\n"
+    
+    # Correlation analysis
+    if include_correlations and len(numeric_cols) >= 2:
+        analysis += "## 🔗 Correlation Analysis\n\n"
+        
+        corr_matrix = df[numeric_cols].corr()
+        
+        # Find strong correlations
+        strong_correlations = []
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = corr_matrix.iloc[i, j]
+                if abs(corr_val) > 0.5:
+                    strong_correlations.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
+        if strong_correlations:
+            analysis += "### Significant correlations (|r| > 0.5):\n"
+            strong_correlations.sort(key=lambda x: abs(x[2]), reverse=True)
+            
+            for var1, var2, corr in strong_correlations:
+                strength = "very strong" if abs(corr) > 0.8 else "strong" if abs(corr) > 0.6 else "moderate"
+                direction = "positive" if corr > 0 else "negative"
+                analysis += f"- **{var1}** ↔ **{var2}**: {corr:.3f} ({strength} {direction})\n"
+        else:
+            analysis += "No strong correlations detected.\n"
+        
+        analysis += "\n"
+    
+    # Distribution analysis
+    if len(numeric_cols) > 0:
+        analysis += "## 📈 Distribution Analysis\n\n"
+        
+        for col in numeric_cols[:3]:  # Analyze first 3 columns
+            skewness = df[col].skew()
+            kurtosis = df[col].kurtosis()
+            
+            analysis += f"### {col}\n"
+            analysis += f"- **Skewness**: {skewness:.3f} "
+            
+            if abs(skewness) < 0.5:
+                analysis += "(symmetric distribution)\n"
+            elif skewness > 0:
+                analysis += "(right-skewed)\n"
+            else:
+                analysis += "(left-skewed)\n"
+            
+            analysis += f"- **Kurtosis**: {kurtosis:.3f} "
+            if kurtosis > 3:
+                analysis += "(peaked distribution)\n"
+            elif kurtosis < -1:
+                analysis += "(flat distribution)\n"
+            else:
+                analysis += "(close to normal)\n"
+            
+            analysis += "\n"
+    
+    # Conclusions and recommendations
+    analysis += "## 💡 Conclusions and Recommendations\n\n"
+    
+    conclusions = []
+    
+    # Data quality
+    missing_pct_total = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+    if missing_pct_total < 5:
+        conclusions.append("✅ High data quality - ready for analysis")
+    elif missing_pct_total < 15:
+        conclusions.append("⚠️ Data requires preprocessing")
+    else:
+        conclusions.append("❌ Serious data cleaning needed")
+    
+    # Data size
+    if len(df) > 100000:
+        conclusions.append("📊 Large dataset - suitable for machine learning")
+    elif len(df) > 1000:
+        conclusions.append("📈 Medium dataset - sufficient for statistical analysis")
+    else:
+        conclusions.append("📉 Small dataset - limited analysis capabilities")
+    
+    # Correlations
+    if len(numeric_cols) >= 2:
+        corr_matrix = df[numeric_cols].corr()
+        max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
+        if max_corr > 0.8:
+            conclusions.append("🔗 Strong correlations detected - possible multicollinearity")
+        elif max_corr > 0.5:
+            conclusions.append("📊 Moderate correlations found between variables")
+    
+    # Outliers
+    outlier_cols = []
+    for col in numeric_cols:
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
+        if len(outliers) > len(df) * 0.05:  # More than 5% outliers
+            outlier_cols.append(col)
+    
+    if outlier_cols:
+        conclusions.append(f"⚠️ Outliers detected in columns: {', '.join(outlier_cols)}")
+    
+    for i, conclusion in enumerate(conclusions, 1):
+        analysis += f"{i}. {conclusion}\n"
+    
+    analysis += "\n### Next Steps:\n"
+    
+    next_steps = []
+    
+    if missing_pct_total > 5:
+        next_steps.append("🔧 Handle missing values")
+    
+    if len(numeric_cols) >= 3:
+        next_steps.append("🤖 Apply machine learning methods")
+    
+    if outlier_cols:
+        next_steps.append("🎯 Analyze and handle outliers")
+    
+    if len(text_cols) > 0:
+        next_steps.append("📝 Analyze categorical variables")
+    
+    if len(numeric_cols) >= 2:
+        next_steps.append("📊 Build predictive models")
+    
+    for i, step in enumerate(next_steps, 1):
+        analysis += f"{i}. {step}\n"
+    
+    analysis += f"\n---\n*Detailed analysis performed on {datetime.now().strftime('%d.%m.%Y at %H:%M')}*"
+    
+    return analysis
+
+def generate_executive_summary(df):
+    """Generate brief overview"""
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    summary = f"""
+# 📊 Data Brief Overview
 
 ## Key Metrics
-- **Total Records**: {len(df):,}
-- **Data Columns**: {len(df.columns)}
-- **Data Quality**: {calculate_data_quality(df):.1f}/10
+- **Records**: {len(df):,}
+- **Columns**: {len(df.columns)}
+- **Numeric metrics**: {len(numeric_cols)}
+- **Data quality**: {calculate_data_quality(df):.1f}/10
 
-## Insights
+## Key Statistics
 """
     
     if len(numeric_cols) > 0:
         for col in numeric_cols[:3]:
             mean_val = df[col].mean()
-            summary += f"- **{col}**: Average of {mean_val:.2f}\n"
+            summary += f"- **{col}**: average {mean_val:.2f}\n"
+    
+    summary += f"\n*Overview created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*"
     
     return summary
 
-def generate_detailed_analysis(df):
+def generate_custom_report(df, include_charts=True, include_stats=True, include_correlations=True, include_outliers=False):
+    """Generate custom report"""
+    
+    report = f"""
+# 🎯 Custom Report
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
+
+## 📋 Report Configuration
+- Charts: {'✅' if include_charts else '❌'}
+- Statistics: {'✅' if include_stats else '❌'}
+- Correlations: {'✅' if include_correlations else '❌'}
+- Outlier analysis: {'✅' if include_outliers else '❌'}
+
+## 📊 Data Overview
+- Total records: {len(df):,}
+- Total columns: {len(df.columns)}
+"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
-    text_cols = df.select_dtypes(include=['object']).columns
     
-    analysis = f"""
-# 📈 Detailed Data Analysis
-
-## Dataset Overview
-- **Total Rows**: {len(df):,}
-- **Total Columns**: {len(df.columns)}
-- **Memory Usage**: {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB
-- **Numeric Columns**: {len(numeric_cols)}
-- **Text Columns**: {len(text_cols)}
-
-## Data Quality Assessment
-- **Missing Values**: {df.isnull().sum().sum():,} ({(df.isnull().sum().sum() / (len(df) * len(df.columns)) * 100):.1f}%)
-- **Duplicate Rows**: {df.duplicated().sum():,} ({(df.duplicated().sum() / len(df) * 100):.1f}%)
-- **Quality Score**: {calculate_data_quality(df):.1f}/10
-
-## Statistical Summary
-"""
-    
-    if len(numeric_cols) > 0:
-        analysis += "\n### Numeric Columns Analysis\n"
-        for col in numeric_cols:
+    if include_stats and len(numeric_cols) > 0:
+        report += f"\n## 📈 Statistical Overview\n"
+        for col in numeric_cols[:5]:
             stats = df[col].describe()
-            analysis += f"""
-**{col}**:
-- Mean: {stats['mean']:.2f}
-- Median: {stats['50%']:.2f}
-- Std Dev: {stats['std']:.2f}
-- Min: {stats['min']:.2f}
-- Max: {stats['max']:.2f}
-"""
+            report += f"**{col}**: min={stats['min']:.2f}, max={stats['max']:.2f}, mean={stats['mean']:.2f}\n"
     
-    return analysis
+    if include_correlations and len(numeric_cols) >= 2:
+        report += f"\n## 🔗 Correlation Analysis\n"
+        corr_matrix = df[numeric_cols].corr()
+        max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
+        report += f"Maximum correlation: {max_corr:.3f}\n"
+    
+    if include_outliers:
+        report += f"\n## 🎯 Outlier Analysis\n"
+        for col in numeric_cols[:3]:
+            outliers_info = detect_outliers_advanced(df[col])
+            iqr_outliers = outliers_info['IQR']['count']
+            report += f"**{col}**: {iqr_outliers} outliers by IQR method\n"
+    
+    return report
 
-def generate_custom_report(df):
-    return f"""
-# 🎯 Custom Analytics Report
+# Helper functions for creating demo data
+def create_demo_data():
+    """Create demonstration data"""
+    np.random.seed(42)
+    
+    n_records = 1000
+    
+    data = {
+        'Date': pd.date_range('2024-01-01', periods=n_records, freq='D'),
+        'Sales': np.random.normal(1000, 200, n_records),
+        'Customers': np.random.poisson(30, n_records),
+        'Revenue': np.random.normal(5000, 1000, n_records),
+        'Region': np.random.choice(['North', 'South', 'East', 'West'], n_records),
+        'Category': np.random.choice(['A', 'B', 'C'], n_records),
+        'Rating': np.random.uniform(1, 5, n_records)
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Add some realistic dependencies
+    df['Conversion'] = df['Customers'] / df['Sales'] * 100
+    df['Average_Check'] = df['Revenue'] / df['Customers']
+    
+    # Add some missing values for realism
+    df.loc[np.random.choice(df.index, 50), 'Rating'] = np.nan
+    
+    return df
 
-## Executive Summary
-This report provides a comprehensive analysis of the uploaded dataset containing {len(df):,} records across {len(df.columns)} variables.
+def create_ecommerce_data():
+    """Create e-commerce data"""
+    np.random.seed(123)
+    
+    n_records = 2000
+    
+    data = {
+        'user_id': range(1, n_records + 1),
+        'Age': np.random.randint(18, 65, n_records),
+        'Gender': np.random.choice(['M', 'F'], n_records),
+        'Purchase_Amount': np.random.exponential(50, n_records),
+        'Category': np.random.choice(['Electronics', 'Clothing', 'Books', 'Home'], n_records),
+        'Satisfaction': np.random.randint(1, 6, n_records),
+        'Time_on_Site': np.random.normal(300, 100, n_records),  # seconds
+        'Page_Views': np.random.poisson(5, n_records),
+        'Device': np.random.choice(['Desktop', 'Mobile', 'Tablet'], n_records),
+        'Source': np.random.choice(['Search', 'Social Media', 'Email', 'Direct'], n_records)
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Add dependencies
+    # Young users more likely to use mobile
+    mobile_prob = 1 / (1 + np.exp((df['Age'] - 35) / 10))
+    df.loc[np.random.random(n_records) < mobile_prob, 'Device'] = 'Mobile'
+    
+    # More time on site = more purchases
+    df['Purchase_Amount'] = df['Purchase_Amount'] * (1 + df['Time_on_Site'] / 1000)
+    
+    # Add missing values
+    df.loc[np.random.choice(df.index, 100), 'Satisfaction'] = np.nan
+    
+    return df
 
-## Key Findings
-1. **Data Completeness**: {100 - (df.isnull().sum().sum() / (len(df) * len(df.columns)) * 100):.1f}% complete
-2. **Data Uniqueness**: {100 - (df.duplicated().sum() / len(df) * 100):.1f}% unique records
-3. **Numerical Features**: {len(df.select_dtypes(include=[np.number]).columns)} available for analysis
-
-## Recommendations
-- Consider data cleaning for missing values
-- Explore correlations between numeric variables
-- Implement feature engineering for categorical variables
-"""
-
-def show_stats():
-    st.markdown("## 📊 Advanced Statistical Analysis")
+def auto_analyze_data():
+    """Automatic analysis of loaded data"""
     if 'data' not in st.session_state:
-        st.warning("Please upload data first!")
         return
     
     df = st.session_state.data
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     
-    col1, col2 = st.columns([2, 1])
+    st.markdown("### 🔍 Auto-Analysis Results")
+    
+    # Basic information
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("### 📈 Descriptive Statistics")
-        if len(numeric_cols) > 0:
-            st.dataframe(df[numeric_cols].describe())
-        
-        # Распределения
-        if len(numeric_cols) > 0:
-            st.markdown("### 📊 Distribution Analysis")
-            selected_col = st.selectbox("Choose column for distribution", numeric_cols)
-            
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                # Гистограмма
-                fig_hist = px.histogram(df, x=selected_col, title=f"Distribution of {selected_col}")
-                st.plotly_chart(fig_hist, use_container_width=True)
-            
-            with col_b:
-                # Box plot
-                fig_box = px.box(df, y=selected_col, title=f"Box Plot: {selected_col}")
-                st.plotly_chart(fig_box, use_container_width=True)
+        st.metric("📊 Data Size", f"{len(df)} × {len(df.columns)}")
     
     with col2:
-        st.markdown("### 🎯 Statistical Tests")
+        missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+        st.metric("❌ Missing", f"{missing_pct:.1f}%")
+    
+    with col3:
+        quality_score = calculate_data_quality(df)
+        st.metric("⭐ Quality", f"{quality_score:.1f}/10")
+    
+    # Show insights
+    show_insights_and_advice(df)
+    
+    # Brief statistical overview
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) > 0:
+        st.markdown("#### 📈 Quick Statistics")
         
-        if len(numeric_cols) >= 2:
-            st.markdown("#### Correlation Tests")
-            col1_test = st.selectbox("Variable 1", numeric_cols, key="test1")
-            col2_test = st.selectbox("Variable 2", [col for col in numeric_cols if col != col1_test], key="test2")
+        for col in numeric_cols[:3]:  # Show first 3 columns
+            mean_val = df[col].mean()
+            std_val = df[col].std()
+            cv = (std_val / mean_val) * 100 if mean_val != 0 else 0
             
-            if st.button("Run Correlation Test"):
-                corr_coef, p_value = stats.pearsonr(df[col1_test].dropna(), df[col2_test].dropna())
-                
-                st.metric("Correlation Coefficient", f"{corr_coef:.3f}")
-                st.metric("P-value", f"{p_value:.4f}")
-                
-                if p_value < 0.05:
-                    st.success("Statistically significant correlation!")
-                else:
-                    st.warning("No significant correlation")
-        
-        # Normality tests
-        if len(numeric_cols) > 0:
-            st.markdown("#### Normality Test")
-            norm_col = st.selectbox("Test for normality", numeric_cols, key="norm")
-            
-            if st.button("Run Shapiro-Wilk Test"):
-                stat, p_val = stats.shapiro(df[norm_col].dropna().sample(min(5000, len(df))))
-                
-                st.metric("Test Statistic", f"{stat:.4f}")
-                st.metric("P-value", f"{p_val:.4f}")
-                
-                if p_val > 0.05:
-                    st.success("Data appears normally distributed")
-                else:
-                    st.warning("Data is not normally distributed")
+            st.write(f"**{col}**: mean = {mean_val:.2f}, variation = {cv:.1f}%")
 
+def calculate_data_quality(df):
+    """Calculate data quality score"""
+    
+    score = 10.0
+    
+    # Penalty for missing values
+    missing_pct = df.isnull().sum().sum() / (len(df) * len(df.columns))
+    score -= missing_pct * 5
+    
+    # Penalty for duplicates
+    duplicate_pct = df.duplicated().sum() / len(df)
+    score -= duplicate_pct * 3
+    
+    # Penalty for low variation (constant columns)
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        if df[col].std() == 0:  # Constant column
+            score -= 1
+    
+    return max(0, min(10, score))
+
+def fill_missing_values(df):
+    """Fill missing values"""
+    
+    df_filled = df.copy()
+    
+    for col in df_filled.columns:
+        if df_filled[col].dtype in ['float64', 'int64']:
+            # Numeric - with median
+            df_filled[col] = df_filled[col].fillna(df_filled[col].median())
+        elif df_filled[col].dtype == 'object':
+            # Categorical - with mode or 'Unknown'
+            mode_val = df_filled[col].mode()
+            if len(mode_val) > 0:
+                df_filled[col] = df_filled[col].fillna(mode_val[0])
+            else:
+                df_filled[col] = df_filled[col].fillna('Unknown')
+        elif df_filled[col].dtype == 'datetime64[ns]':
+            # Dates - with median
+            df_filled[col] = df_filled[col].fillna(df_filled[col].median())
+    
+    return df_filled
+
+# Run application
 if __name__ == "__main__":
     main()
