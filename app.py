@@ -2149,183 +2149,228 @@ def _show_query_insights(df: pd.DataFrame) -> None:
                "we also render a quick bar chart.")
 
 # ---------- Main section (drop-in replacement for your show_database) ----------
+def _sqlite_db_path() -> str:
+    return "uploaded_data.db"
+
+def _normalize_table_name(raw: str, fallback_idx: int = 1) -> str:
+    name = raw.rsplit(".csv", 1)[0]
+    name = "".join(ch.lower() if ch.isalnum() else "_" for ch in name)
+    name = "_".join(filter(None, name.split("_")))
+    if not name:
+        name = f"table_{fallback_idx}"
+    if name[0].isdigit():
+        name = f"t_{name}"
+    return name
+
+def _sqlite_run_sql(query: str) -> pd.DataFrame:
+    db = _sqlite_db_path()
+    if not os.path.exists(db):
+        raise FileNotFoundError("SQLite database not found. Please upload CSV files first.")
+    conn = sqlite3.connect(db)
+    try:
+        return pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
+
+def _pg_run_sql(conn_kwargs: dict, query: str) -> pd.DataFrame:
+    if not _HAS_PG:
+        raise RuntimeError("psycopg2 is not installed. Run: pip install psycopg2-binary")
+    conn = psycopg2.connect(**conn_kwargs)
+    try:
+        return pd.read_sql(query, conn)
+    finally:
+        conn.close()
+
+def _numeric_quick_insights(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+    num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    if num_cols:
+        st.markdown("#### 📊 Numeric Statistics — *Quick insights*")
+        for col in num_cols[:4]:
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: st.metric(f"{col} · Sum", f"{df[col].sum():,.2f}")
+            with c2: st.metric(f"{col} · Avg", f"{df[col].mean():.2f}")
+            with c3: st.metric(f"{col} · Max", f"{df[col].max():.2f}")
+            with c4: st.metric(f"{col} · Min", f"{df[col].min():.2f}")
+    # small bar if cat+num and few rows
+    if len(df) <= 20 and len(df.columns) >= 2:
+        num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+        cat_cols = [c for c in df.columns if c not in num_cols]
+        if num_cols and cat_cols:
+            fig = px.bar(df, x=cat_cols[0], y=num_cols[0],
+                         title=f"{num_cols[0]} by {cat_cols[0]}")
+            st.plotly_chart(fig, use_container_width=True)
+    st.caption("**Explanation (EN):** We summarize numeric columns (sum/avg/min/max). "
+               "If the result set is small and has both a categorical and a numeric field, "
+               "we also render a quick bar chart.")
+
+
+# ---------------- Main UI ----------------
 def show_database():
     st.markdown("## 💾 Database and SQL")
 
-    col_left, col_right = st.columns([2, 1])
+    # Choose backend
+    backend = st.radio(
+        "Choose database backend",
+        ["SQLite (uploaded CSV files)", "PostgreSQL (connect to server)"],
+        horizontal=False,
+    )
 
-    # ===================== LEFT: LOAD CSVs + SQL editor =====================
-    with col_left:
-        st.markdown("### 🔗 Database Management — *Upload & Inspect*")
+    # ---------- SQLite MODE (files -> local SQLite) ----------
+    if backend.startswith("SQLite"):
+        left, right = st.columns([2, 1])
 
-        uploaded_files = st.file_uploader(
-            "Upload CSV files to database",
-            type=["csv"],
-            accept_multiple_files=True,
-            help="Each CSV will be written as a separate table into SQLite (uploaded_data.db)"
-        )
+        # LEFT: upload & SQL
+        with left:
+            st.markdown("### 🔗 Database Management — *Upload & Inspect*")
 
-        if uploaded_files and st.button("📁 Load to DB"):
-            try:
-                conn = sqlite3.connect(_db_path())
-                loaded_tables = []
-
-                for f in uploaded_files:
-                    df = pd.read_csv(f)
-                    # Robust table name normalization
-                    name = f.name.rsplit(".csv", 1)[0]
-                    name = "".join(ch.lower() if ch.isalnum() else "_" for ch in name)
-                    name = "_".join(filter(None, name.split("_")))
-                    if not name:
-                        name = f"table_{len(loaded_tables)+1}"
-                    if name[0].isdigit():
-                        name = f"t_{name}"
-
-                    df.to_sql(name, conn, if_exists="replace", index=False)
-                    loaded_tables.append(name)
-                    st.success(f"✅ {f.name} → table `{name}` ({len(df):,} rows)")
-
-                conn.close()
-                st.session_state.db_tables = loaded_tables
-                st.success(f"🎉 Successfully loaded {len(loaded_tables)} table(s).")
-                st.caption("**Explanation (EN):** Each CSV becomes its own SQLite table; "
-                           "column types are inferred by pandas on import.")
-            except Exception as e:
-                st.error(f"Database loading error: {e}")
-                st.info("💡 Try simpler ASCII file names if the issue persists.")
-
-        st.markdown("### ✏️ SQL Editor — *Run Queries*")
-
-        # Discover tables, show structure & row counts
-        db = _db_path()
-        available_tables = []
-        if os.path.exists(db):
-            try:
-                conn = sqlite3.connect(db)
-                tables_df = pd.read_sql_query(
-                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;", conn
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                replace_db = st.checkbox(
+                    "Replace database on upload",
+                    value=True,
+                    help="If enabled, the existing SQLite DB will be deleted before loading new files."
                 )
-                if not tables_df.empty:
-                    st.markdown(f"**Available tables in `{db}`:**")
-                    for t in tables_df["name"].tolist():
-                        try:
-                            info = pd.read_sql_query(
-                                f"SELECT * FROM pragma_table_info('{t}');", conn
-                            )
-                            cols = ", ".join(info["name"].tolist()) if not info.empty else "—"
-                            cnt = pd.read_sql_query(
-                                f'SELECT COUNT(*) AS c FROM "{t}";', conn
-                            )["c"].iloc[0]
-                            st.write(f"• `{t}` — {cnt:,} rows · {cols}")
-                            available_tables.append(t)
-                        except Exception as e:
-                            st.write(f"• `{t}` — structure read error: {str(e)[:80]}…")
-                else:
-                    st.warning("No tables found in database.")
-            except Exception as e:
-                st.warning(f"Could not open DB: {e}")
-            finally:
+            with c2:
+                if st.button("🧹 Reset database"):
+                    if os.path.exists(_sqlite_db_path()):
+                        os.remove(_sqlite_db_path())
+                    st.success("Database reset. Upload new CSV files to create fresh tables.")
+                    st.stop()
+
+            uploaded = st.file_uploader(
+                "Upload CSV files",
+                type=["csv"],
+                accept_multiple_files=True,
+                help="Each CSV becomes a table inside uploaded_data.db"
+            )
+
+            if uploaded and st.button("📁 Load files into SQLite"):
                 try:
+                    if replace_db and os.path.exists(_sqlite_db_path()):
+                        os.remove(_sqlite_db_path())
+                    conn = sqlite3.connect(_sqlite_db_path())
+                    loaded = []
+                    for idx, f in enumerate(uploaded, start=1):
+                        df = pd.read_csv(f)
+                        name = _normalize_table_name(f.name, fallback_idx=idx)
+                        df.to_sql(name, conn, if_exists="replace", index=False)
+                        loaded.append((name, len(df)))
+                        st.success(f"✅ {f.name} → `{name}` ({len(df):,} rows)")
                     conn.close()
-                except:
+                    st.success(f"🎉 Loaded {len(loaded)} table(s).")
+                    st.caption("**Explanation (EN):** We created/overwrote a local SQLite DB; "
+                               "now the SQL editor and quick queries will use your tables only.")
+                except Exception as e:
+                    st.error(f"Load error: {e}")
+                    st.info("💡 Try simpler ASCII file names if the issue persists.")
+
+            st.markdown("### ✏️ SQL Editor — *Run Queries*")
+
+            # List tables
+            tables = []
+            if os.path.exists(_sqlite_db_path()):
+                try:
+                    conn = sqlite3.connect(_sqlite_db_path())
+                    tdf = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;", conn)
+                    tables = tdf["name"].tolist()
+                    if tables:
+                        st.markdown(f"**Available tables in `{_sqlite_db_path()}`:**")
+                        for t in tables:
+                            try:
+                                info = pd.read_sql_query(f"SELECT * FROM pragma_table_info('{t}');", conn)
+                                cnt = pd.read_sql_query(f'SELECT COUNT(*) AS c FROM "{t}";', conn)["c"].iloc[0]
+                                cols = ", ".join(info["name"].tolist()) if not info.empty else "—"
+                                st.write(f"• `{t}` — {cnt:,} rows · {cols}")
+                            except Exception as e:
+                                st.write(f"• `{t}` — structure read error: {str(e)[:80]}…")
+                except Exception as e:
+                    st.warning(f"Could not open DB: {e}")
+                finally:
+                    try: conn.close()
+                    except: pass
+            else:
+                st.info("📂 No database yet. Upload CSV files to create one.")
+
+            # Templates
+            if tables:
+                sel_table = st.selectbox("Table for templates", tables)
+                templates = {
+                    "🔎 Show 10 rows":  f'SELECT * FROM "{sel_table}" LIMIT 10;',
+                    "🔢 Count records": f'SELECT COUNT(*) AS total_records FROM "{sel_table}";',
+                    "🧱 Table info":    f"SELECT * FROM pragma_table_info('{sel_table}');",
+                }
+                # numeric template if exists
+                try:
+                    conn = sqlite3.connect(_sqlite_db_path())
+                    sample = pd.read_sql_query(f'SELECT * FROM "{sel_table}" LIMIT 50;', conn)
+                    conn.close()
+                    num_cols = sample.select_dtypes(include=["number"]).columns.tolist()
+                    if num_cols:
+                        c = num_cols[0]
+                        templates["📈 Basic stats"] = (
+                            f'SELECT AVG("{c}") AS avg_{c}, SUM("{c}") AS sum_{c}, '
+                            f'MAX("{c}") AS max_{c}, MIN("{c}") AS min_{c} '
+                            f'FROM "{sel_table}";'
+                        )
+                except Exception:
                     pass
-        else:
-            st.info("📂 No database yet. Upload CSV files to create one.")
+                chosen = st.selectbox("Query template", list(templates.keys()))
+                template_sql = templates[chosen]
+            else:
+                template_sql = "-- Upload CSV files first.\nSELECT 'No tables available' AS message;"
 
-        # Templates bound to a selected table (if any)
-        if available_tables:
-            sel_table = st.selectbox("Table for templates", available_tables)
-            templates = {
-                "🔎 Show 10 rows":       f'SELECT * FROM "{sel_table}" LIMIT 10;',
-                "🔢 Count records":      f'SELECT COUNT(*) AS total_records FROM "{sel_table}";',
-                "🧱 Table info":         f"SELECT * FROM pragma_table_info('{sel_table}');",
-            }
-            # Add a basic numeric stats template if numeric exists
+            sql = st.text_area("SQL Query", value=template_sql, height=160)
+            if st.button("▶️ Execute (SQLite)"):
+                try:
+                    result = _sqlite_run_sql(sql)
+                    st.success("✅ Query executed successfully.")
+                    st.dataframe(result, use_container_width=True)
+                    _numeric_quick_insights(result)
+                except Exception as e:
+                    st.error(f"Query error: {e}")
+
+        # RIGHT: quick queries
+        with right:
+            st.markdown("### 📊 Quick Queries — *One-click analysis*")
+            if not os.path.exists(_sqlite_db_path()):
+                st.info("No SQLite database yet. Upload CSV files on the left.")
+                return
+            conn = sqlite3.connect(_sqlite_db_path())
             try:
-                conn = sqlite3.connect(db)
-                sample = pd.read_sql_query(f'SELECT * FROM "{sel_table}" LIMIT 50;', conn)
+                tdf = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;", conn)
+                tables = tdf["name"].tolist()
+            finally:
                 conn.close()
-                num_cols = sample.select_dtypes(include=["number"]).columns.tolist()
-                if num_cols:
-                    c = num_cols[0]
-                    templates["📈 Basic stats"] = (
-                        f'SELECT AVG("{c}") AS avg_{c}, SUM("{c}") AS sum_{c}, '
-                        f'MAX("{c}") AS max_{c}, MIN("{c}") AS min_{c} '
-                        f'FROM "{sel_table}";'
-                    )
-            except Exception:
-                pass
+            if not tables:
+                st.info("No tables found. Upload CSV files first.")
+                return
 
-            chosen = st.selectbox("Query template", list(templates.keys()))
-            template_sql = templates[chosen]
-        else:
-            template_sql = "-- Upload CSV files first.\nSELECT 'No tables available' AS message;"
-
-        sql_query = st.text_area(
-            "SQL Query",
-            value=template_sql,
-            height=160,
-            help="Write any valid SQLite SQL here. Use the templates above to get started."
-        )
-
-        if st.button("▶️ Execute Query"):
+            q_table = st.selectbox("Table", tables, key="quick_table_sqlite")
+            # peek
+            conn = sqlite3.connect(_sqlite_db_path())
             try:
-                result = _run_sql(sql_query)
-                st.success("✅ Query executed successfully.")
-                st.dataframe(result, use_container_width=True)
-                _show_query_insights(result)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-                st.caption("**Explanation (EN):** Queries run against `uploaded_data.db` created from your CSV uploads.")
+                peek = pd.read_sql_query(f'SELECT * FROM "{q_table}" LIMIT 200;', conn)
+            finally:
+                conn.close()
 
-    # ===================== RIGHT: Quick Queries =====================
-    with col_right:
-        st.markdown("### 📊 Quick Queries — *One-click analysis*")
+            num_cols = peek.select_dtypes(include=["number"]).columns.tolist()
+            cat_cols = [c for c in peek.columns if c not in num_cols]
 
-        if not os.path.exists(_db_path()):
-            st.info("No database yet. Upload CSV files on the left.")
-            return
-
-        # Discover tables
-        conn = sqlite3.connect(_db_path())
-        try:
-            tdf = pd.read_sql_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;", conn)
-            tables = tdf["name"].tolist()
-        finally:
-            conn.close()
-
-        if not tables:
-            st.info("No tables found. Upload CSV files first.")
-            return
-
-        q_table = st.selectbox("Table", tables, key="quick_table")
-        # peek to infer schema
-        conn = sqlite3.connect(_db_path())
-        try:
-            peek = pd.read_sql_query(f'SELECT * FROM "{q_table}" LIMIT 200;', conn)
-        finally:
-            conn.close()
-
-        num_cols = peek.select_dtypes(include=["number"]).columns.tolist()
-        cat_cols = [c for c in peek.columns if c not in num_cols]
-
-        if st.button("📋 Table Summary"):
-            try:
-                total = _run_sql(f'SELECT COUNT(*) AS c FROM "{q_table}";')
+            if st.button("📋 Table Summary (SQLite)"):
+                total = _sqlite_run_sql(f'SELECT COUNT(*) AS c FROM "{q_table}";')
                 st.metric("Total Records", f"{int(total.iloc[0,0]):,}")
-                head = _run_sql(f'SELECT * FROM "{q_table}" LIMIT 5;')
+                head = _sqlite_run_sql(f'SELECT * FROM "{q_table}" LIMIT 5;')
                 st.dataframe(head, use_container_width=True)
-                st.caption("**Explanation (EN):** We show the total row count and a 5-row preview.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+                st.caption("**Explanation (EN):** Total row count and a 5-row preview.")
 
-        if num_cols and st.button("💰 Numeric Summary"):
-            try:
+            if num_cols and st.button("💰 Numeric Summary (SQLite)"):
                 parts = []
                 for c in num_cols[:5]:
                     parts += [f'AVG("{c}") AS avg_{c}', f'SUM("{c}") AS sum_{c}',
                               f'MAX("{c}") AS max_{c}', f'MIN("{c}") AS min_{c}']
-                res = _run_sql(f'SELECT {", ".join(parts)} FROM "{q_table}";')
+                res = _sqlite_run_sql(f'SELECT {", ".join(parts)} FROM "{q_table}";')
                 for c in num_cols[:3]:
                     a1, a2, a3, a4 = st.columns(4)
                     with a1: st.metric(f"{c} · Avg", f"{res[f'avg_{c}'].iloc[0]:.2f}")
@@ -2333,13 +2378,10 @@ def show_database():
                     with a3: st.metric(f"{c} · Max", f"{res[f'max_{c}'].iloc[0]:.2f}")
                     with a4: st.metric(f"{c} · Min", f"{res[f'min_{c}'].iloc[0]:.2f}")
                 st.caption("**Explanation (EN):** Aggregations are computed directly in SQLite.")
-            except Exception as e:
-                st.error(f"Error: {e}")
 
-        if cat_cols and st.button("👥 Category Analysis"):
-            try:
+            if cat_cols and st.button("👥 Category Analysis (SQLite)"):
                 cat = cat_cols[0]
-                res = _run_sql(
+                res = _sqlite_run_sql(
                     f'SELECT "{cat}" AS category, COUNT(*) AS cnt '
                     f'FROM "{q_table}" GROUP BY "{cat}" ORDER BY cnt DESC LIMIT 15;'
                 )
@@ -2347,14 +2389,11 @@ def show_database():
                     fig = px.bar(res, x="category", y="cnt", title=f"Distribution of {cat}")
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(res)
-                    st.caption("**Explanation (EN):** We count the most frequent categories.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+                    st.caption("**Explanation (EN):** Counts the most frequent categories.")
 
-        if num_cols and st.button("📈 Recent Trend (last 100 rows)"):
-            try:
+            if num_cols and st.button("📈 Recent Trend (last 100 rows, SQLite)"):
                 target = num_cols[0]
-                res = _run_sql(
+                res = _sqlite_run_sql(
                     f'SELECT rowid AS idx, "{target}" FROM "{q_table}" '
                     f"ORDER BY rowid DESC LIMIT 100;"
                 )
@@ -2363,8 +2402,151 @@ def show_database():
                     fig = px.line(res, x="idx", y=target, title=f"Trend of {target} (last 100 rows)")
                     st.plotly_chart(fig, use_container_width=True)
                     st.caption("**Explanation (EN):** Uses SQLite internal rowid as an approximate recent order.")
+
+    # ---------- POSTGRESQL MODE (read-only connection) ----------
+    else:
+        if not _HAS_PG:
+            st.error("PostgreSQL driver not found. Install it first:\n`pip install psycopg2-binary`")
+            return
+
+        left, right = st.columns([2, 1])
+
+        # LEFT: connection & SQL editor
+        with left:
+            st.markdown("### 🔗 PostgreSQL Connection — *Connect & Query*")
+
+            with st.form("pg_conn_form", clear_on_submit=False):
+                host = st.text_input("Host", "localhost")
+                port = st.text_input("Port", "5432")
+                dbname = st.text_input("Database", "")
+                user = st.text_input("User", "")
+                password = st.text_input("Password", type="password")
+                submitted = st.form_submit_button("🔌 Connect")
+
+            if submitted:
+                st.session_state.pg_conn = {
+                    "host": host, "port": port, "dbname": dbname,
+                    "user": user, "password": password,
+                }
+                st.success("Connection parameters saved. Use the widgets below.")
+                st.caption("**Explanation (EN):** We do not persist credentials; they live in session only.")
+
+            if "pg_conn" not in st.session_state:
+                st.info("Enter connection parameters and click **Connect**.")
+                return
+
+            conn_kwargs = st.session_state.pg_conn
+
+            # list tables (user schemas only)
+            try:
+                tables_df = _pg_run_sql(conn_kwargs, """
+                    SELECT table_schema, table_name
+                    FROM information_schema.tables
+                    WHERE table_type='BASE TABLE'
+                      AND table_schema NOT IN ('pg_catalog','information_schema')
+                    ORDER BY table_schema, table_name;
+                """)
+                st.markdown("**Available tables (schema.table):**")
+                tables_df["qualified"] = tables_df["table_schema"] + "." + tables_df["table_name"]
+                for _, r in tables_df.iterrows():
+                    st.write(f"• `{r['qualified']}`")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Failed to list tables: {e}")
+                return
+
+            # SQL editor
+            default_sql = "SELECT NOW() AS server_time;"
+            sql = st.text_area("SQL Query (PostgreSQL)", value=default_sql, height=160)
+            if st.button("▶️ Execute (PostgreSQL)"):
+                try:
+                    result = _pg_run_sql(conn_kwargs, sql)
+                    st.success("✅ Query executed successfully.")
+                    st.dataframe(result, use_container_width=True)
+                    _numeric_quick_insights(result)
+                except Exception as e:
+                    st.error(f"Query error: {e}")
+
+        # RIGHT: quick queries (schema-aware)
+        with right:
+            st.markdown("### 📊 Quick Queries — *One-click analysis*")
+
+            try:
+                tdf = _pg_run_sql(st.session_state.pg_conn, """
+                    SELECT table_schema, table_name
+                    FROM information_schema.tables
+                    WHERE table_type='BASE TABLE'
+                      AND table_schema NOT IN ('pg_catalog','information_schema')
+                    ORDER BY table_schema, table_name;
+                """)
+                tdf["qualified"] = tdf["table_schema"] + "." + tdf["table_name"]
+                tables = tdf["qualified"].tolist()
+            except Exception as e:
+                st.error(f"Could not fetch tables: {e}")
+                return
+
+            if not tables:
+                st.info("No user tables found.")
+                return
+
+            q_table = st.selectbox("Table (schema.table)", tables, key="quick_table_pg")
+
+            # peek to infer schema
+            try:
+                peek = _pg_run_sql(st.session_state.pg_conn, f'SELECT * FROM {q_table} LIMIT 200;')
+            except Exception as e:
+                st.error(f"Peek failed: {e}")
+                return
+
+            num_cols = peek.select_dtypes(include=["number"]).columns.tolist()
+            cat_cols = [c for c in peek.columns if c not in num_cols]
+
+            if st.button("📋 Table Summary (PostgreSQL)"):
+                res = _pg_run_sql(st.session_state.pg_conn, f"SELECT COUNT(*) AS cnt FROM {q_table};")
+                st.metric("Total Records", f"{int(res.iloc[0,0]):,}")
+                head = _pg_run_sql(st.session_state.pg_conn, f"SELECT * FROM {q_table} LIMIT 5;")
+                st.dataframe(head, use_container_width=True)
+                st.caption("**Explanation (EN):** Total row count and a 5-row preview.")
+
+            if num_cols and st.button("💰 Numeric Summary (PostgreSQL)"):
+                parts = []
+                for c in num_cols[:5]:
+                    parts += [f'AVG("{c}") AS avg_{c}', f'SUM("{c}") AS sum_{c}',
+                              f'MAX("{c}") AS max_{c}', f'MIN("{c}") AS min_{c}']
+                res = _pg_run_sql(st.session_state.pg_conn, f"SELECT {', '.join(parts)} FROM {q_table};")
+                for c in num_cols[:3]:
+                    a1, a2, a3, a4 = st.columns(4)
+                    with a1: st.metric(f"{c} · Avg", f"{res[f'avg_{c}'].iloc[0]:.2f}")
+                    with a2: st.metric(f"{c} · Sum", f"{res[f'sum_{c}'].iloc[0]:,.2f}")
+                    with a3: st.metric(f"{c} · Max", f"{res[f'max_{c}'].iloc[0]:.2f}")
+                    with a4: st.metric(f"{c} · Min", f"{res[f'min_{c}'].iloc[0]:.2f}")
+                st.caption("**Explanation (EN):** Aggregations are computed directly in PostgreSQL.")
+
+            if cat_cols and st.button("👥 Category Analysis (PostgreSQL)"):
+                cat = cat_cols[0]
+                res = _pg_run_sql(
+                    st.session_state.pg_conn,
+                    f'SELECT "{cat}" AS category, COUNT(*) AS cnt '
+                    f'FROM {q_table} GROUP BY "{cat}" ORDER BY cnt DESC LIMIT 15;'
+                )
+                if not res.empty:
+                    fig = px.bar(res, x="category", y="cnt", title=f"Distribution of {cat}")
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.dataframe(res)
+                    st.caption("**Explanation (EN):** Counts the most frequent categories.")
+
+            if num_cols and st.button("📈 Recent Trend (last 100 rows, PostgreSQL)"):
+                target = num_cols[0]
+                # Without a timestamp/id we fallback to fetching the last 100 by CTID heuristic
+                res = _pg_run_sql(
+                    st.session_state.pg_conn,
+                    f"SELECT {target} FROM {q_table} LIMIT 100;"
+                )
+                if not res.empty:
+                    res = res.reset_index().rename(columns={"index": "idx"})
+                    fig = px.line(res, x="idx", y=target, title=f"Trend of {target} (first 100 rows)")
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.caption("**Explanation (EN):** No guaranteed ordering without an ID/timestamp; "
+                               "we show a simple trend over the fetched sample.")
 
 def show_reports():
     st.markdown("## 📄 Report Generation")
