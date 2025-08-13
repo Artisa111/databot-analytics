@@ -1,5 +1,5 @@
-st.warning("?? Mobile Version Notice: Streamlit doesn't support large file uploads on mobile browsers. Please use desktop version or try our Telegram bot for better experience!") 
-st.warning("?? Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
+st.warning("⚠️ Mobile Version Notice: Streamlit doesn't support large file uploads on mobile browsers. Please use desktop version or try our Telegram bot for better experience!") 
+st.warning("⚠️ Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
