@@ -2516,6 +2516,126 @@ def show_database():
                         st.success("Demo database created! Refresh page to see quick queries.")
                         st.rerun()
                     except Exception as e:
+                        st.error(f"Error creating demo database: {e}")
+
+def show_query_insights(result_df):
+    """Show insights from SQL query results"""
+    
+    if result_df.empty:
+        return
+    
+    numeric_cols = result_df.select_dtypes(include=[np.number]).columns
+    
+    if len(numeric_cols) > 0:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📊 Numeric Statistics")
+            for col in numeric_cols:
+                total = result_df[col].sum()
+                avg = result_df[col].mean()
+                max_val = result_df[col].max()
+                min_val = result_df[col].min()
+                
+                st.write(f"**{col}:**")
+                st.write(f"  • Sum: {total:,.2f}")
+                st.write(f"  • Average: {avg:.2f}")
+                st.write(f"  • Max: {max_val:,.2f}")
+                st.write(f"  • Min: {min_val:,.2f}")
+        
+        with col2:
+            # Simple visualization if possible
+            if len(result_df) <= 20:  # Small results
+                first_numeric = numeric_cols[0]
+                
+                if len(result_df.columns) >= 2:
+                    # Has categorical column for grouping
+                    cat_col = [col for col in result_df.columns if col not in numeric_cols]
+                    if cat_col:
+                        fig = px.bar(result_df, x=cat_col[0], y=first_numeric,
+                                   title=f"{first_numeric} by {cat_col[0]}")
+                        st.plotly_chart(fig, use_container_width=True) BY count DESC LIMIT 10;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top categories in {cat_col}:**")
+                            
+                            # Create bar chart
+                            fig = px.bar(result, x=cat_col, y='count', 
+                                       title=f"Distribution of {cat_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Show table
+                            st.dataframe(result)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if len(columns) > 1 and st.button("📈 Data Trends"):
+                    try:
+                        # Show recent data trends
+                        query = f"SELECT * FROM `{selected_table_quick}` ORDER BY rowid DESC LIMIT 20;"
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write("**Recent data trends:**")
+                            st.dataframe(result)
+                            
+                            # If there are numeric columns, create trend chart
+                            if numeric_columns:
+                                trend_col = numeric_columns[0]
+                                fig = px.line(result.reset_index(), 
+                                            x='index', y=trend_col,
+                                            title=f"Trend: {trend_col}")
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                
+                if numeric_columns and text_columns and st.button("🔝 Top Performers"):
+                    try:
+                        # Find top performers
+                        numeric_col = numeric_columns[0]
+                        category_col = text_columns[0]
+                        
+                        query = f"""
+                        SELECT `{category_col}`, 
+                               AVG(`{numeric_col}`) as avg_value,
+                               COUNT(*) as count
+                        FROM `{selected_table_quick}` 
+                        GROUP BY `{category_col}` 
+                        ORDER BY avg_value DESC 
+                        LIMIT 10;
+                        """
+                        result = execute_sql_query(query)
+                        
+                        if not result.empty:
+                            st.write(f"**Top {category_col} by average {numeric_col}:**")
+                            st.dataframe(result)
+                            
+                            # Visualization
+                            fig = px.bar(result, x=category_col, y='avg_value',
+                                       title=f"Average {numeric_col} by {category_col}")
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+            
+        else:
+            st.info("📂 No database tables available")
+            st.write("**To use Quick Queries:**")
+            st.write("1. Upload CSV files and click 'Load to DB'")
+            st.write("2. Or save current session data to database")
+            st.write("3. Then use the quick query buttons")
+            
+            # Option to create demo data only if no session data
+            if 'data' not in st.session_state:
+                if st.button("🎲 Create Demo DB First"):
+                    try:
+                        create_sample_database()
+                        st.success("Demo database created! Refresh page to see quick queries.")
+                        st.rerun()
+                    except Exception as e:
                         st.error(f"Error creating demo database: {e}") BY count DESC LIMIT 10;"
                         result = execute_sql_query(query)
                         
