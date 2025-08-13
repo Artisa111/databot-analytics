@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
 import seaborn as sns
@@ -85,11 +86,103 @@ def main():
     
     with st.sidebar:
         st.markdown("### 🎯 Navigation")
+        st.markdown("---")
+        
+        # Navigation with descriptions
         page = st.selectbox(
             "Select section",
             ["🏠 Dashboard", "📁 Data Upload", "📈 Charts", "📊 Statistics", 
              "🤖 Machine Learning", "🧪 A/B Testing", "💾 Database", "📄 Reports"]
         )
+        
+        # Show current section info
+        section_info = {
+            "🏠 Dashboard": "Main overview with key metrics and insights",
+            "📁 Data Upload": "Upload and clean CSV, Excel, JSON files", 
+            "📈 Charts": "Interactive visualizations including 3D plots",
+            "📊 Statistics": "Descriptive stats and statistical tests",
+            "🤖 Machine Learning": "Clustering, PCA, anomaly detection",
+            "🧪 A/B Testing": "Statistical significance testing",
+            "💾 Database": "SQL operations and database management",
+            "📄 Reports": "Generate comprehensive analysis reports"
+        }
+        
+        st.info(section_info[page])
+        st.markdown("---")
+        
+        # Quick actions sidebar
+        if 'data' in st.session_state:
+            st.markdown("### ⚡ Quick Actions")
+            
+            df = st.session_state.data
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            
+            if st.button("🎯 Data Summary", use_container_width=True):
+                st.session_state.show_summary = True
+            
+            if len(numeric_cols) >= 2 and st.button("🔗 Quick Correlation", use_container_width=True):
+                st.session_state.show_correlation = True
+            
+            if len(numeric_cols) >= 3 and st.button("🌐 3D Quick Plot", use_container_width=True):
+                st.session_state.show_3d = True
+            
+            st.markdown("---")
+            
+            # Data info in sidebar
+            st.markdown("### 📊 Data Info")
+            st.write(f"**Rows:** {len(df):,}")
+            st.write(f"**Columns:** {len(df.columns)}")
+            st.write(f"**Numeric:** {len(numeric_cols)}")
+            
+            missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+            quality_color = "🟢" if missing_pct < 5 else "🟡" if missing_pct < 15 else "🔴"
+            st.write(f"**Quality:** {quality_color} {100-missing_pct:.1f}%")
+        
+        else:
+            st.markdown("### 🚀 Getting Started")
+            st.write("1. Upload your data files")
+            st.write("2. Or load demo data")
+            st.write("3. Explore with charts")
+            st.write("4. Run ML analysis")
+            st.write("5. Generate reports")
+            
+            st.markdown("---")
+            st.markdown("### 📋 Supported Files")
+            st.write("• CSV files")
+            st.write("• Excel (.xlsx, .xls)")
+            st.write("• JSON files")
+            st.write("• Multiple file upload")
+        
+        st.markdown("---")
+        st.markdown("### 🆘 Need Help?")
+        with st.expander("📖 How to use"):
+            st.write("""
+            **Quick Start:**
+            1. Go to Data Upload
+            2. Load demo data or upload files
+            3. Explore Dashboard for insights
+            4. Use Charts for visualization
+            5. Try Machine Learning features
+            
+            **Pro Tips:**
+            • Use 3D Scatter for complex relationships
+            • Check Statistics for data quality
+            • A/B Testing for comparisons
+            • Reports for final analysis
+            """)
+    
+    # Handle quick actions
+    if 'show_summary' in st.session_state and st.session_state.show_summary:
+        show_quick_summary()
+        st.session_state.show_summary = False
+    
+    if 'show_correlation' in st.session_state and st.session_state.show_correlation:
+        show_quick_correlation()
+        st.session_state.show_correlation = False
+        
+    if 'show_3d' in st.session_state and st.session_state.show_3d:
+        show_quick_3d()
+        st.session_state.show_3d = False
     
     # Page routing
     if page == "🏠 Dashboard":
@@ -194,63 +287,475 @@ def show_insights_and_advice(df):
 def show_dashboard():
     st.markdown("## 🏠 Welcome to DataBot Analytics Pro!")
     
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        if st.button("🎲 Load Demo Data"):
-            demo_data = create_demo_data()
-            st.session_state.data = demo_data
-            st.success("Demo data loaded! 🎉")
-            st.rerun()
-        
-        if st.button("🛒 Load E-commerce Data"):
-            ecommerce_data = create_ecommerce_data()
-            st.session_state.data = ecommerce_data
-            st.success("E-commerce data loaded! 💰")
-            st.rerun()
-    
-    with col2:
-        st.markdown("### 🎯 Quick Actions")
-        if st.button("🔍 Auto-Analysis"):
-            if 'data' in st.session_state:
-                auto_analyze_data()
-            else:
-                st.warning("Please load data first!")
-    
-    if 'data' in st.session_state:
-        df = st.session_state.data
-        
-        # Metrics
-        col1, col2, col3, col4 = st.columns(4)
+    # Enhanced Dashboard with multiple sections
+    if 'data' not in st.session_state:
+        # Initial welcome section
+        col1, col2 = st.columns([2, 1])
         
         with col1:
-            st.metric("📝 Total Rows", f"{len(df):,}")
+            st.markdown("### 🚀 Get Started")
+            if st.button("🎲 Load Demo Data"):
+                demo_data = create_demo_data()
+                st.session_state.data = demo_data
+                st.success("Demo data loaded! 🎉")
+                st.rerun()
+            
+            if st.button("🛒 Load E-commerce Data"):
+                ecommerce_data = create_ecommerce_data()
+                st.session_state.data = ecommerce_data
+                st.success("E-commerce data loaded! 💰")
+                st.rerun()
+            
+            if st.button("📊 Generate Financial Data"):
+                financial_data = create_financial_data()
+                st.session_state.data = financial_data
+                st.success("Financial data loaded! 💹")
+                st.rerun()
+        
         with col2:
-            st.metric("📊 Columns", f"{len(df.columns)}")
-        with col3:
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            st.metric("🔢 Numeric", f"{len(numeric_cols)}")
-        with col4:
-            missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
-            st.metric("❌ Missing %", f"{missing_pct:.1f}%")
+            st.markdown("### 📋 Quick Info")
+            st.info("🔍 DataBot Analytics Pro provides comprehensive data analysis capabilities")
+            st.write("**Features:**")
+            st.write("• Advanced visualizations")
+            st.write("• Machine learning models")
+            st.write("• Statistical analysis")
+            st.write("• A/B testing")
+            st.write("• Custom reports")
+            st.write("• SQL database operations")
         
-        # Show insights and advice
-        show_insights_and_advice(df)
+        # Feature showcase
+        st.markdown("### ✨ Feature Highlights")
         
-        # Quick visualization
+        feature_col1, feature_col2, feature_col3 = st.columns(3)
+        
+        with feature_col1:
+            st.markdown("""
+            **📈 Advanced Analytics**
+            - Interactive visualizations
+            - 3D scatter plots
+            - Correlation heatmaps
+            - Distribution analysis
+            """)
+        
+        with feature_col2:
+            st.markdown("""
+            **🤖 Machine Learning**
+            - K-means clustering
+            - PCA analysis
+            - Anomaly detection
+            - Feature importance
+            """)
+        
+        with feature_col3:
+            st.markdown("""
+            **📊 Business Intelligence**
+            - Executive dashboards
+            - A/B testing
+            - Statistical reports
+            - Data quality metrics
+            """)
+        
+        return
+    
+    # Main dashboard when data is loaded
+    df = st.session_state.data
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
+    
+    # Enhanced header with action buttons
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.markdown("### 📊 Data Overview Dashboard")
+    with col2:
+        if st.button("🔍 Auto-Analysis"):
+            auto_analyze_data()
+    with col3:
+        if st.button("🎯 Smart Insights"):
+            generate_smart_insights(df)
+    
+    # Key metrics section
+    st.markdown("### 📈 Key Metrics")
+    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+    
+    with metric_col1:
+        st.metric("📝 Total Rows", f"{len(df):,}")
+    with metric_col2:
+        st.metric("📊 Columns", f"{len(df.columns)}")
+    with metric_col3:
+        st.metric("🔢 Numeric", f"{len(numeric_cols)}")
+    with metric_col4:
+        missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+        st.metric("❌ Missing %", f"{missing_pct:.1f}%")
+    with metric_col5:
+        quality_score = calculate_data_quality(df)
+        st.metric("⭐ Quality Score", f"{quality_score:.1f}/10")
+    
+    # Data insights section
+    show_insights_and_advice(df)
+    
+    # Interactive dashboard sections
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
+    
+    with tab1:
+        # Quick visualizations
         if len(numeric_cols) > 0:
-            col1, col2 = st.columns(2)
+            viz_col1, viz_col2 = st.columns(2)
             
-            with col1:
-                fig = px.line(df, y=numeric_cols[0], title=f"Trend: {numeric_cols[0]}")
-                st.plotly_chart(fig, use_container_width=True)
+            with viz_col1:
+                # Auto-select best chart for first numeric column
+                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")
+                
+                if len(numeric_cols) >= 2:
+                    fig = px.line(df.reset_index(), x='index', y=selected_col, 
+                                title=f"Trend: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    fig = px.histogram(df, x=selected_col, title=f"Distribution: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
             
-            with col2:
+            with viz_col2:
                 if len(numeric_cols) > 1:
+                    # Correlation heatmap
                     corr_matrix = df[numeric_cols].corr()
                     fig = px.imshow(corr_matrix, title="Correlation Matrix", 
                                   color_continuous_scale="RdBu")
                     st.plotly_chart(fig, use_container_width=True)
+                elif len(text_cols) > 0:
+                    # Category distribution
+                    cat_col = text_cols[0]
+                    value_counts = df[cat_col].value_counts().head(10)
+                    fig = px.bar(x=value_counts.index, y=value_counts.values,
+                               title=f"Top Categories: {cat_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+    
+    with tab2:
+        # Data explorer
+        st.markdown("#### 🔍 Interactive Data Explorer")
+        
+        # Filter controls
+        filter_col1, filter_col2 = st.columns(2)
+        
+        with filter_col1:
+            if len(text_cols) > 0:
+                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
+                if selected_category != "All":
+                    category_values = st.multiselect(
+                        f"Select {selected_category} values",
+                        df[selected_category].unique(),
+                        default=df[selected_category].unique()[:5]
+                    )
+                    if category_values:
+                        df_filtered = df[df[selected_category].isin(category_values)]
+                    else:
+                        df_filtered = df
+                else:
+                    df_filtered = df
+            else:
+                df_filtered = df
+        
+        with filter_col2:
+            if len(numeric_cols) > 0:
+                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))
+                if selected_numeric != "None":
+                    min_val, max_val = st.slider(
+                        f"Select {selected_numeric} range",
+                        float(df[selected_numeric].min()),
+                        float(df[selected_numeric].max()),
+                        (float(df[selected_numeric].min()), float(df[selected_numeric].max()))
+                    )
+                    df_filtered = df_filtered[
+                        (df_filtered[selected_numeric] >= min_val) & 
+                        (df_filtered[selected_numeric] <= max_val)
+                    ]
+        
+        # Display filtered data
+        st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
+        st.dataframe(df_filtered.head(20))
+        
+        # Quick stats on filtered data
+        if len(df_filtered) > 0 and len(numeric_cols) > 0:
+            st.markdown("#### 📊 Filtered Data Statistics")
+            quick_stats = df_filtered[numeric_cols].describe().round(2)
+            st.dataframe(quick_stats)
+    
+    with tab3:
+        # Smart recommendations
+        st.markdown("#### 🎯 Smart Recommendations")
+        generate_dashboard_recommendations(df)
+    
+    with tab4:
+        # Trend analysis
+        st.markdown("#### 📈 Trend Analysis")
+        if len(numeric_cols) > 0:
+            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")
+            
+            # Create trend visualization
+            df_trend = df.copy()
+            df_trend['index'] = range(len(df_trend))
+            
+            # Calculate moving average
+            window_size = min(20, len(df_trend) // 10)
+            if window_size > 1:
+                df_trend[f'{trend_col}_MA'] = df_trend[trend_col].rolling(window=window_size).mean()
+            
+            fig = go.Figure()
+            
+            # Original data
+            fig.add_trace(go.Scatter(
+                x=df_trend['index'],
+                y=df_trend[trend_col],
+                mode='lines',
+                name='Original',
+                opacity=0.6
+            ))
+            
+            # Moving average
+            if window_size > 1:
+                fig.add_trace(go.Scatter(
+                    x=df_trend['index'],
+                    y=df_trend[f'{trend_col}_MA'],
+                    mode='lines',
+                    name=f'Moving Average ({window_size})',
+                    line=dict(width=3)
+                ))
+            
+            fig.update_layout(
+                title=f"Trend Analysis: {trend_col}",
+                xaxis_title="Data Points",
+                yaxis_title=trend_col
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Trend insights
+            trend_analysis = analyze_trend(df[trend_col])
+            st.info(f"📈 Trend Analysis: {trend_analysis}")
+            
+            # Additional trend metrics
+            if len(df) > 10:
+                first_quarter = df[trend_col][:len(df)//4].mean()
+                last_quarter = df[trend_col][-len(df)//4:].mean()
+                overall_change = ((last_quarter - first_quarter) / first_quarter) * 100
+                
+                if abs(overall_change) > 5:
+                    change_direction = "increased" if overall_change > 0 else "decreased"
+                    st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
+        
+        # Volatility analysis
+        if len(numeric_cols) > 0:
+            st.markdown("#### 📊 Volatility Analysis")
+            volatility_data = {}
+            
+            for col in numeric_cols[:5]:  # Analyze top 5 numeric columns
+                cv = (df[col].std() / df[col].mean()) * 100 if df[col].mean() != 0 else 0
+                volatility_data[col] = cv
+            
+            volatility_df = pd.DataFrame(list(volatility_data.items()), 
+                                       columns=['Metric', 'Coefficient of Variation (%)'])
+            
+            fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)',
+                        title="Data Volatility Analysis")
+            st.plotly_chart(fig, use_container_width=True)
+
+def generate_smart_insights(df):
+    """Generate smart insights using advanced analysis"""
+    st.markdown("### 🧠 Smart Insights")
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
+    
+    insights = []
+    
+    # Data size insights
+    if len(df) > 100000:
+        insights.append("🎯 **Big Data Opportunity**: Your dataset is large enough for advanced machine learning techniques")
+    elif len(df) < 100:
+        insights.append("⚠️ **Small Sample Alert**: Consider collecting more data for robust statistical analysis")
+    
+    # Missing data insights
+    missing_cols = df.columns[df.isnull().sum() > 0]
+    if len(missing_cols) > 0:
+        worst_missing = df.isnull().sum().idxmax()
+        missing_pct = (df[worst_missing].isnull().sum() / len(df)) * 100
+        insights.append(f"🔧 **Data Quality Focus**: '{worst_missing}' has {missing_pct:.1f}% missing values - prioritize cleaning")
+    
+    # Correlation insights
+    if len(numeric_cols) >= 2:
+        corr_matrix = df[numeric_cols].corr()
+        high_corr_pairs = []
+        
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = abs(corr_matrix.iloc[i, j])
+                if corr_val > 0.8:
+                    high_corr_pairs.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
+        if high_corr_pairs:
+            best_pair = max(high_corr_pairs, key=lambda x: x[2])
+            insights.append(f"🔗 **Strong Relationship**: '{best_pair[0]}' and '{best_pair[1]}' are highly correlated ({best_pair[2]:.3f})")
+    
+    # Outlier insights
+    outlier_summary = {}
+    for col in numeric_cols:
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
+        outlier_summary[col] = len(outliers)
+    
+    if outlier_summary:
+        max_outlier_col = max(outlier_summary, key=outlier_summary.get)
+        if outlier_summary[max_outlier_col] > 0:
+            outlier_pct = (outlier_summary[max_outlier_col] / len(df)) * 100
+            insights.append(f"🎯 **Outlier Alert**: '{max_outlier_col}' has {outlier_summary[max_outlier_col]} outliers ({outlier_pct:.1f}%)")
+    
+    # Categorical insights
+    if len(text_cols) > 0:
+        for col in text_cols[:3]:
+            unique_ratio = df[col].nunique() / len(df)
+            if unique_ratio > 0.8:
+                insights.append(f"🆔 **High Uniqueness**: '{col}' might be an identifier (80%+ unique values)")
+            elif unique_ratio < 0.1:
+                insights.append(f"📊 **Low Diversity**: '{col}' has limited categories - good for grouping analysis")
+    
+    # Distribution insights
+    for col in numeric_cols[:3]:
+        skewness = df[col].skew()
+        if abs(skewness) > 2:
+            direction = "right" if skewness > 0 else "left"
+            insights.append(f"📈 **Skewed Distribution**: '{col}' is highly {direction}-skewed - consider transformation")
+    
+    # Display insights
+    if insights:
+        for insight in insights:
+            st.write(f"• {insight}")
+    else:
+        st.info("🤖 No specific insights detected. Your data appears well-balanced!")
+
+def generate_dashboard_recommendations(df):
+    """Generate actionable recommendations for the dashboard"""
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    text_cols = df.select_dtypes(include=['object']).columns
+    
+    recommendations = []
+    
+    # Analysis recommendations
+    if len(numeric_cols) >= 3:
+        recommendations.append({
+            "title": "🤖 Machine Learning Opportunity",
+            "description": "With 3+ numeric variables, you can perform clustering and PCA analysis",
+            "action": "Go to Machine Learning section",
+            "priority": "High"
+        })
+    
+    if len(numeric_cols) >= 2:
+        recommendations.append({
+            "title": "📊 Correlation Analysis",
+            "description": "Explore relationships between your numeric variables",
+            "action": "Check Charts → Heatmap or Scatter Plot",
+            "priority": "Medium"
+        })
+    
+    # Data quality recommendations
+    missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+    if missing_pct > 5:
+        recommendations.append({
+            "title": "🔧 Data Cleaning Needed",
+            "description": f"Your data has {missing_pct:.1f}% missing values",
+            "action": "Use Data Upload → Fill Missing Values",
+            "priority": "High"
+        })
+    
+    # Visualization recommendations
+    if len(text_cols) > 0 and len(numeric_cols) > 0:
+        recommendations.append({
+            "title": "📈 Category Analysis",
+            "description": "Compare numeric metrics across categories",
+            "action": "Try Charts → Bar Chart or Box Plot",
+            "priority": "Medium"
+        })
+    
+    if len(numeric_cols) >= 3:
+        recommendations.append({
+            "title": "🌐 3D Visualization",
+            "description": "Explore 3D relationships in your data",
+            "action": "Use Charts → 3D Scatter Plot",
+            "priority": "Medium"
+        })
+    
+    # Statistical recommendations
+    if len(df) > 1000:
+        recommendations.append({
+            "title": "🧪 A/B Testing Ready",
+            "description": "Your sample size is suitable for statistical testing",
+            "action": "Explore A/B Testing section",
+            "priority": "Low"
+        })
+    
+    # Business recommendations
+    if 'revenue' in [col.lower() for col in df.columns] or 'sales' in [col.lower() for col in df.columns]:
+        recommendations.append({
+            "title": "💰 Business Analytics",
+            "description": "Generate business intelligence reports",
+            "action": "Create Executive Summary in Reports",
+            "priority": "High"
+        })
+    
+    # Display recommendations
+    for i, rec in enumerate(recommendations):
+        priority_color = {
+            "High": "🔴",
+            "Medium": "🟡", 
+            "Low": "🟢"
+        }
+        
+        with st.expander(f"{priority_color[rec['priority']]} {rec['title']}", expanded=(i < 2)):
+            st.write(rec['description'])
+            st.info(f"**Recommended Action:** {rec['action']}")
+
+def create_financial_data():
+    """Create financial/investment demo data"""
+    np.random.seed(456)
+    
+    n_records = 500
+    
+    # Create realistic financial data
+    dates = pd.date_range('2023-01-01', periods=n_records, freq='D')
+    
+    # Simulate stock prices with some trend and volatility
+    initial_price = 100
+    returns = np.random.normal(0.001, 0.02, n_records)  # Daily returns
+    prices = [initial_price]
+    
+    for r in returns[1:]:
+        prices.append(prices[-1] * (1 + r))
+    
+    data = {
+        'Date': dates,
+        'Stock_Price': prices,
+        'Volume': np.random.lognormal(10, 1, n_records).astype(int),
+        'Market_Cap': np.array(prices) * np.random.uniform(1000000, 5000000, n_records),
+        'P_E_Ratio': np.random.uniform(10, 30, n_records),
+        'Dividend_Yield': np.random.uniform(0, 0.05, n_records),
+        'Sector': np.random.choice(['Technology', 'Healthcare', 'Finance', 'Energy'], n_records),
+        'Risk_Level': np.random.choice(['Low', 'Medium', 'High'], n_records),
+        'ESG_Score': np.random.uniform(1, 10, n_records)
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Add calculated metrics
+    df['Daily_Return'] = df['Stock_Price'].pct_change()
+    df['Volatility'] = df['Daily_Return'].rolling(window=30).std()
+    df['Moving_Avg_50'] = df['Stock_Price'].rolling(window=50).mean()
+    
+    # Add some correlations
+    df.loc[df['Sector'] == 'Technology', 'P_E_Ratio'] *= 1.5  # Tech stocks higher P/E
+    df.loc[df['Risk_Level'] == 'High', 'Volatility'] *= 1.3  # High risk = more volatile
+    
+    return df
 
 def show_upload():
     st.markdown("## 📂 Data Upload")
@@ -358,7 +863,7 @@ def show_charts():
     # Chart type selection
     chart_type = st.selectbox(
         "📊 Select chart type", 
-        ["📈 Line Chart", "📊 Bar Chart", "🔵 Scatter Plot", 
+        ["📈 Line Chart", "📊 Bar Chart", "🔵 Scatter Plot", "🌐 3D Scatter Plot",
          "📉 Area Chart", "🗺️ Heatmap", "🥧 Pie Chart", 
          "📦 Box Plot", "📊 Histogram", "🎻 Violin Plot"]
     )
@@ -502,6 +1007,154 @@ def show_charts():
             st.warning(f"⚠️ Outliers detected: {len(outliers)} ({len(outliers)/len(df)*100:.1f}%)")
         else:
             st.success("✅ No outliers detected")
+
+    elif chart_type == "📊 Histogram" and len(numeric_cols) > 0:
+        st.markdown("### 📊 Histogram")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            hist_col = st.selectbox("Select column", numeric_cols, key="hist_col")
+        with col2:
+            bins = st.slider("Number of bins", 10, 100, 30)
+        with col3:
+            show_normal = st.checkbox("Show normal curve", False)
+        
+        fig = px.histogram(df, x=hist_col, nbins=bins, title=f"Distribution: {hist_col}")
+        
+        if show_normal:
+            # Add normal distribution overlay
+            mean_val = df[hist_col].mean()
+            std_val = df[hist_col].std()
+            x_range = np.linspace(df[hist_col].min(), df[hist_col].max(), 100)
+            normal_curve = stats.norm.pdf(x_range, mean_val, std_val)
+            
+            # Scale normal curve to match histogram
+            normal_curve = normal_curve * len(df) * (df[hist_col].max() - df[hist_col].min()) / bins
+            
+            fig.add_trace(go.Scatter(
+                x=x_range,
+                y=normal_curve,
+                mode='lines',
+                name='Normal Distribution',
+                line=dict(color='red', width=2)
+            ))
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Distribution statistics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Mean", f"{df[hist_col].mean():.2f}")
+        with col2:
+            st.metric("Std Dev", f"{df[hist_col].std():.2f}")
+        with col3:
+            st.metric("Skewness", f"{df[hist_col].skew():.2f}")
+        with col4:
+            st.metric("Kurtosis", f"{df[hist_col].kurtosis():.2f}")
+    
+    elif chart_type == "🎻 Violin Plot" and len(numeric_cols) > 0:
+        st.markdown("### 🎻 Violin Plot")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            violin_col = st.selectbox("Numeric column", numeric_cols, key="violin_col")
+        with col2:
+            group_by = st.selectbox("Group by", ["None"] + text_cols, key="violin_group")
+        
+        if group_by == "None":
+            fig = go.Figure()
+            fig.add_trace(go.Violin(
+                y=df[violin_col],
+                name=violin_col,
+                box_visible=True,
+                meanline_visible=True
+            ))
+            fig.update_layout(title=f"Violin Plot: {violin_col}")
+        else:
+            fig = px.violin(df, y=violin_col, x=group_by, box=True,
+                          title=f"Violin Plot: {violin_col} by {group_by}")
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Violin plot insights
+        if group_by != "None":
+            st.markdown("#### 📊 Group Comparison")
+            group_stats = df.groupby(group_by)[violin_col].agg(['mean', 'std', 'median']).round(2)
+            st.dataframe(group_stats)
+    
+    elif chart_type == "📉 Area Chart" and len(numeric_cols) > 0:
+        st.markdown("### 📉 Area Chart")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            area_cols = st.multiselect("Select columns", numeric_cols, default=numeric_cols[:min(3, len(numeric_cols))])
+        with col2:
+            cumulative = st.checkbox("Cumulative", False)
+        with col3:
+            normalize = st.checkbox("Normalize (0-1)", False)
+        
+        if area_cols:
+            df_area = df[area_cols].copy()
+            
+            if normalize:
+                df_area = (df_area - df_area.min()) / (df_area.max() - df_area.min())
+            
+            if cumulative:
+                df_area = df_area.cumsum()
+            
+            df_area['index'] = range(len(df_area))
+            
+            fig = px.area(df_area, x='index', y=area_cols,
+                         title="Area Chart" + (" (Cumulative)" if cumulative else "") + (" (Normalized)" if normalize else ""))
+            st.plotly_chart(fig, use_container_width=True)
+    
+    else:
+        if len(numeric_cols) < 2:
+            st.warning("⚠️ Need at least 2 numeric columns for this chart type")
+        elif len(text_cols) == 0 and chart_type in ["📊 Bar Chart", "🥧 Pie Chart"]:
+            st.warning("⚠️ Need categorical columns for this chart type")
+        else:
+            st.info("📊 Select appropriate data types for the chosen chart")
+
+def analyze_trend(series):
+    """Enhanced trend analysis"""
+    if len(series) < 2:
+        return "Insufficient data"
+    
+    # Remove NaN values
+    clean_series = series.dropna()
+    if len(clean_series) < 2:
+        return "Insufficient clean data"
+    
+    # Linear regression trend
+    x = np.arange(len(clean_series))
+    z = np.polyfit(x, clean_series, 1)
+    slope = z[0]
+    
+    # Calculate trend strength
+    correlation = np.corrcoef(x, clean_series)[0, 1]
+    
+    # Determine trend direction and strength
+    if abs(correlation) > 0.7:
+        strength = "strong"
+    elif abs(correlation) > 0.4:
+        strength = "moderate"
+    else:
+        strength = "weak"
+    
+    if slope > 0:
+        direction = "upward"
+    elif slope < 0:
+        direction = "downward"
+    else:
+        direction = "flat"
+    
+    # Calculate percentage change
+    first_val = clean_series.iloc[0]
+    last_val = clean_series.iloc[-1]
+    pct_change = ((last_val - first_val) / first_val) * 100 if first_val != 0 else 0
+    
+    return f"{strength.title()} {direction} trend (R²={correlation**2:.3f}, {pct_change:+.1f}% change)"
 
 def analyze_trend(series):
     """Trend analysis in data"""
@@ -2071,6 +2724,103 @@ def fill_missing_values(df):
             df_filled[col] = df_filled[col].fillna(df_filled[col].median())
     
     return df_filled
+
+def show_quick_summary():
+    """Show quick data summary in sidebar action"""
+    if 'data' not in st.session_state:
+        return
+    
+    df = st.session_state.data
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    st.markdown("### 📊 Quick Data Summary")
+    
+    # Basic stats
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Records", f"{len(df):,}")
+        st.metric("Columns", len(df.columns))
+    with col2:
+        st.metric("Numeric Cols", len(numeric_cols))
+        missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
+        st.metric("Missing %", f"{missing_pct:.1f}%")
+    
+    # Quick insights
+    if len(numeric_cols) > 0:
+        st.write("**Top Numeric Columns:**")
+        for col in numeric_cols[:3]:
+            mean_val = df[col].mean()
+            std_val = df[col].std()
+            st.write(f"• {col}: μ={mean_val:.2f}, σ={std_val:.2f}")
+
+def show_quick_correlation():
+    """Show quick correlation analysis"""
+    if 'data' not in st.session_state:
+        return
+    
+    df = st.session_state.data
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    if len(numeric_cols) >= 2:
+        st.markdown("### 🔗 Quick Correlation Analysis")
+        
+        corr_matrix = df[numeric_cols].corr()
+        
+        # Find highest correlations
+        correlations = []
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = corr_matrix.iloc[i, j]
+                correlations.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
+        # Sort by absolute correlation
+        correlations.sort(key=lambda x: abs(x[2]), reverse=True)
+        
+        st.write("**Strongest Correlations:**")
+        for i, (var1, var2, corr) in enumerate(correlations[:5]):
+            strength = "Strong" if abs(corr) > 0.7 else "Moderate" if abs(corr) > 0.5 else "Weak"
+            st.write(f"{i+1}. {var1} ↔ {var2}: {corr:.3f} ({strength})")
+
+def show_quick_3d():
+    """Show quick 3D visualization"""
+    if 'data' not in st.session_state:
+        return
+    
+    df = st.session_state.data
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    if len(numeric_cols) >= 3:
+        st.markdown("### 🌐 Quick 3D Visualization")
+        
+        # Auto-select first 3 numeric columns
+        x_col, y_col, z_col = numeric_cols[:3]
+        
+        fig = go.Figure(data=[go.Scatter3d(
+            x=df[x_col],
+            y=df[y_col],
+            z=df[z_col],
+            mode='markers',
+            marker=dict(
+                size=5,
+                color=df[z_col],
+                colorscale='Viridis',
+                opacity=0.8
+            )
+        )])
+        
+        fig.update_layout(
+            title=f"3D Plot: {x_col} vs {y_col} vs {z_col}",
+            scene=dict(
+                xaxis_title=x_col,
+                yaxis_title=y_col,
+                zaxis_title=z_col
+            ),
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Need at least 3 numeric columns for 3D plot")
 
 # Run application
 if __name__ == "__main__":
