@@ -2,7 +2,7 @@ st.warning("⚠️ Mobile Version Notice: Streamlit doesn't support large file u
 st.warning("⚠️ Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.express as px  
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
