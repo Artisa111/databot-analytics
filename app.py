@@ -18,6 +18,19 @@ from scipy import stats
 import sqlite3
 import io
 import os
+
+
+
+
+# Optional PostgreSQL driver
+try:
+    import psycopg2  # noqa: F401
+    _HAS_PG = True
+eexcept Exception:
+    _HAS_PG = False
+
+
+
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import requests
