@@ -16,18 +16,23 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
 import sqlite3
+import os, sqlite3
 import io
 import os
 
 
 
 
-# Optional PostgreSQL driver
+
+# ---------- Optional PostgreSQL driver (safe import) ----------
 try:
     import psycopg2  # noqa: F401
     _HAS_PG = True
-eexcept Exception:
+except Exception:
     _HAS_PG = False
+# -------------------------------------------------------------
+
+
 
 
 
@@ -2160,7 +2165,20 @@ def _show_query_insights(df: pd.DataFrame) -> None:
                "If the result set is small and has both a categorical and a numeric field, "
                "we also render a quick bar chart.")
 
-# ---------- Main section (drop-in replacement for your show_database) ----------
+# ---------- Main section (DROP-IN REPLACEMENT for your show_database) ----------
+
+# If _HAS_PG was not defined above for some reason, define it safely here too
+try:
+    _HAS_PG
+except NameError:
+    try:
+        import psycopg2  # noqa: F401
+        _HAS_PG = True
+    except Exception:
+        _HAS_PG = False
+
+
+# ---------------------- Helpers ----------------------
 def _sqlite_db_path() -> str:
     return "uploaded_data.db"
 
@@ -2170,7 +2188,7 @@ def _normalize_table_name(raw: str, fallback_idx: int = 1) -> str:
     name = "_".join(filter(None, name.split("_")))
     if not name:
         name = f"table_{fallback_idx}"
-    if name[0].isdigit():
+    if name and name[0].isdigit():
         name = f"t_{name}"
     return name
 
@@ -2187,6 +2205,7 @@ def _sqlite_run_sql(query: str) -> pd.DataFrame:
 def _pg_run_sql(conn_kwargs: dict, query: str) -> pd.DataFrame:
     if not _HAS_PG:
         raise RuntimeError("psycopg2 is not installed. Run: pip install psycopg2-binary")
+    import psycopg2  # safe: only executed when _HAS_PG True
     conn = psycopg2.connect(**conn_kwargs)
     try:
         return pd.read_sql(query, conn)
@@ -2205,7 +2224,6 @@ def _numeric_quick_insights(df: pd.DataFrame) -> None:
             with c2: st.metric(f"{col} · Avg", f"{df[col].mean():.2f}")
             with c3: st.metric(f"{col} · Max", f"{df[col].max():.2f}")
             with c4: st.metric(f"{col} · Min", f"{df[col].min():.2f}")
-    # small bar if cat+num and few rows
     if len(df) <= 20 and len(df.columns) >= 2:
         num_cols = df.select_dtypes(include=["number"]).columns.tolist()
         cat_cols = [c for c in df.columns if c not in num_cols]
@@ -2218,11 +2236,10 @@ def _numeric_quick_insights(df: pd.DataFrame) -> None:
                "we also render a quick bar chart.")
 
 
-# ---------------- Main UI ----------------
+# ---------------------- Main UI ----------------------
 def show_database():
     st.markdown("## 💾 Database and SQL")
 
-    # Choose backend
     backend = st.radio(
         "Choose database backend",
         ["SQLite (uploaded CSV files)", "PostgreSQL (connect to server)"],
@@ -2548,7 +2565,6 @@ def show_database():
 
             if num_cols and st.button("📈 Recent Trend (last 100 rows, PostgreSQL)"):
                 target = num_cols[0]
-                # Without a timestamp/id we fallback to fetching the last 100 by CTID heuristic
                 res = _pg_run_sql(
                     st.session_state.pg_conn,
                     f"SELECT {target} FROM {q_table} LIMIT 100;"
