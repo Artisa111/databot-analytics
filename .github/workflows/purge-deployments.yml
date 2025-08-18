@@ -1,0 +1,32 @@
+name: Purge Deployments
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type I UNDERSTAND to delete ALL deployments (environments will NOT be deleted)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: purge-deployments
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    if: ${{ inputs.confirm == 'I UNDERSTAND' }}
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Purge all deployments safely
+        run: |
+          bash scripts/purge_deployments.sh
