@@ -6,32 +6,32 @@ import threading
 import time
 import platform
 
-# Цветной вывод и эмодзи
+# Colored output and emojis
 import colorama
 from colorama import Fore, Style
 colorama.init()
 
-# Настройка кодировки для Windows
+# Encoding setup for Windows terminal
 if platform.system() == "Windows":
-    os.system("chcp 65001 > nul")  # UTF-8 кодировка в терминале
+    os.system("chcp 65001 > nul")  # Use UTF-8 code page in terminal
 
-# Запуск бота
+# Run the bot
 def run_bot():
-    print(Fore.CYAN + "🤖 Запуск бота..." + Style.RESET_ALL)
+    print(Fore.CYAN + "🤖 Starting bot..." + Style.RESET_ALL)
     subprocess.run([sys.executable, "bot.py"], check=True)
 
-# Запуск Streamlit
+# Run Streamlit
 def run_streamlit():
-    print(Fore.GREEN + "📊 Запуск Streamlit..." + Style.RESET_ALL)
+    print(Fore.GREEN + "📊 Starting Streamlit..." + Style.RESET_ALL)
     subprocess.run(["streamlit", "run", "app.py"], check=True)
 
-# Основной запуск
+# Main entrypoint
 if __name__ == "__main__":
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     streamlit_thread = threading.Thread(target=run_streamlit, daemon=True)
 
     bot_thread.start()
-    time.sleep(2)  # Даем боту немного времени на старт
+    time.sleep(2)  # Give the bot a moment to start
     streamlit_thread.start()
 
     bot_thread.join()
