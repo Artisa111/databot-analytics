@@ -4,6 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import pandas as pd
 import io
 import os
+import re
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,16 +17,33 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
-# Get token
-TOKEN = os.getenv('TELEGRAM_TOKEN')
+# Get token with validation
+def validate_telegram_token(token):
+    """Validate Telegram bot token format"""
+    if not token:
+        return False, "TELEGRAM_TOKEN not found in environment variables!"
+    
+    # Strip whitespace and newlines
+    token = token.strip()
+    
+    # Telegram bot token pattern: digits:hash
+    # Real tokens: 8-10 digits, colon, 35+ chars (letters, numbers, underscore, hyphen)
+    pattern = r'^\d{8,10}:[a-zA-Z0-9_-]{30,}$'
+    if not re.match(pattern, token):
+        return False, f"Invalid TELEGRAM_TOKEN format. Expected: digits:hash (found: '{token[:20]}...')"
+    
+    return True, token
+
+raw_token = os.getenv('TELEGRAM_TOKEN', '')
+is_valid, TOKEN = validate_telegram_token(raw_token)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
 class DataAnalyticsBot:
     def __init__(self):
-        if not TOKEN:
-            raise ValueError("TELEGRAM_TOKEN not found in .env file!")
+        if not is_valid:
+            raise ValueError(TOKEN)  # TOKEN now contains the error message
         
         self.application = Application.builder().token(TOKEN).build()
         self.setup_handlers()
