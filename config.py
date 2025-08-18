@@ -1,10 +1,10 @@
- import os
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Telegram Bot Configuration
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', 'your_bot_token_here')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # Streamlit Configuration
 PAGE_TITLE = "DataBot Analytics"

@@ -16,8 +16,10 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
-# Get token
+# Get token and sanitize
 TOKEN = os.getenv('TELEGRAM_TOKEN')
+if TOKEN:
+    TOKEN = TOKEN.strip()  # Remove any whitespace
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +27,10 @@ logging.basicConfig(level=logging.INFO)
 class DataAnalyticsBot:
     def __init__(self):
         if not TOKEN:
-            raise ValueError("TELEGRAM_TOKEN not found in .env file!")
+            raise ValueError("TELEGRAM_TOKEN not found in environment variables!")
+        
+        if len(TOKEN) < 10 or not TOKEN.startswith(('1', '2', '3', '4', '5', '6', '7', '8', '9')):
+            raise ValueError("Invalid TELEGRAM_TOKEN format!")
         
         self.application = Application.builder().token(TOKEN).build()
         self.setup_handlers()
