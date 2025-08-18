@@ -7,7 +7,6 @@ Repository: https://github.com/Artisa111/databot-analytics
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
   <a href="https://github.com/Artisa111/databot-analytics/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/Artisa111/databot-analytics?style=for-the-badge" alt="GitHub Stars"></a>
-  <a href="https://github.com/Artisa111/databot-analytics/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/github/license/Artisa111/databot-analytics?style=for-the-badge" alt="License"></a>
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge" alt="PRs welcome">
 </p>
 
