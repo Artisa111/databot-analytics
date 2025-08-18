@@ -67,7 +67,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 
 ### 🏠 מסך הבית של האפליקציה
 <div align="right">
-<img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="90%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 230918.png" alt="מסך הבית — DataBot Analytics" width="90%">
 </div>
 
 <p align="right"><em>מסך בית אינטואיטיבי עם ניווט מהיר וטעינת דוגמאות נתונים</em></p>
@@ -76,11 +76,11 @@ Repository: https://github.com/Artisa111/databot-analytics
 <table dir="rtl">
 <tr>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 231119.png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
 <p align="right"><em>גרפים אוטומטיים ותרשימי ניתוח</em></p>
 </td>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-commands.png" alt="פקודות הבוט בטלגרם" width="100%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 231045.png" alt="פקודות הבוט בטלגרם" width="100%">
 <p align="right"><em>ממשק הבוט והפקודות הזמינות</em></p>
 </td>
 </tr>
@@ -262,7 +262,7 @@ python bot.py
 <div align="center">
 
 ### 🏠 App Home Screen
-<img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="90%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 230918.png" alt="DataBot Analytics — Home screen" width="90%">
 
 *Clean home screen with quick navigation and demo data loaders*
 
@@ -270,11 +270,11 @@ python bot.py
 <table>
 <tr>
 <td width="50%">
-<img src="assets/screenshots/bot-commands.png" alt="Telegram bot — commands" width="100%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 231045.png" alt="Telegram bot — commands" width="100%">
 <p align="center"><em>Bot interface and available commands</em></p>
 </td>
 <td width="50%">
-<img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="100%">
+<img src="assets/screenshots/Снимок экрана 2025-08-18 231119.png" alt="Telegram bot — pair plot example" width="100%">
 <p align="center"><em>Automatic visualizations and analysis charts</em></p>
 </td>
 </tr>
