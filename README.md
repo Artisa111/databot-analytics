@@ -4,6 +4,14 @@ Repository: https://github.com/Artisa111/databot-analytics
 -->
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
+  <a href="https://github.com/Artisa111/databot-analytics/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/Artisa111/databot-analytics?style=for-the-badge" alt="GitHub Stars"></a>
+  <a href="https://github.com/Artisa111/databot-analytics/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/github/license/Artisa111/databot-analytics?style=for-the-badge" alt="License"></a>
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge" alt="PRs welcome">
+</p>
+
+<p align="center">
   <a href="https://databot-analytics-1.streamlit.app/#data-bot-analytics-pro" target="_blank" style="text-decoration:none;">
     <img src="https://img.shields.io/badge/Open%20App-Streamlit%20Demo-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Open Streamlit App">
   </a>
@@ -46,10 +54,10 @@ Repository: https://github.com/Artisa111/databot-analytics
 - חקירה מהירה: סינון, מיון, חיתוכים, חיפוש.
 - תרשימים אינטראקטיביים: קווי, עמודות, פאי, מפוזר, היסטוגרמה.
 - סטטיסטיקה תיאורית: ממוצע, חציון, סטיית תקן, קורלציות.
-- ניתוח סדרות זמן: Aggregations לפי תאריך/שעה.
+- ניתוח סדרות זמן: אגרגציות לפי תאריך/שעה.
 - ייצוא: הורדת גרפים/טבלאות כתמונה או CSV.
 - ממשק ידידותי למובייל ודסקטופ.
-- אפשרות לשילוב עוזר חכם (DataBot) ל־Q&A על הנתונים.
+- אפשרות לשילוב עוזר חכם (DataBot) לשאלות ותשובות על הנתונים.
 
 <h2>🤖 פקודות/יכולות הבוט (Telegram)</h2>
 - /start — התחלה מהירה והנחיות שימוש.  
@@ -57,12 +65,28 @@ Repository: https://github.com/Artisa111/databot-analytics
 - /upload — שליחת קובץ נתונים (CSV/Excel/JSON).  
 - /stats — תקציר סטטיסטי מהיר של הקובץ.  
 - /plot — יצירת גרפים (בחרו עמודות וסוג תרשים).  
-- /sample — הצגת דוגמת שורות מהנתונים.  
+- /sample — דוגמת שורות מהנתונים.  
 - /export — קבלת תרשים/טבלה כקובץ להורדה.  
 - /settings — הגדרות שפה/פורמט/ברירת מחדל.  
 - /about — מידע על DataBot Analytics.  
 
 <sub>הערה: התאימו את הרשימה לפקודות הזמינות בבוט שלכם בפועל.</sub>
+
+<h2>🖼️ גלריה / תצוגה מקדימה</h2>
+
+<!-- תמונות: שנו את הנתיבים אם שמתם קבצים בתיקייה אחרת -->
+<p align="center">
+  <img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="85%"><br>
+  <sub>מסך בית אינטואיטיבי עם ניווט מהיר וטעינת דוגמאות נתונים</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/bot-commands.png" alt="פקודות הבוט בטלגרם" width="45%">
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="45%">
+  <br>
+  <sub>בוט טלגרם: עזרה, פקודות וגרפים אוטומטיים</sub>
+</p>
 
 <h2>🛠 התקנה והרצה מקומית</h2>
 
@@ -97,21 +121,30 @@ export PORT=8501
 
 <h2 id="פריסה-ל-railway">☁️ פריסה ל‑Railway</h2>
 
-<p>
-  <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank" style="display:inline-block;padding:10px 16px;background:#0B0D0E;color:#fff;border-radius:8px;margin:4px;text-decoration:none;font-weight:600">🚀 פריסה מיידית ל‑Railway</a>
+<p align="center">
+  <!-- כפתור תדמיתי (לא חובה) -->
+  <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank">
+    <img src="assets/buttons/deploy-railway.png" alt="Deploy on Railway" height="48">
+  </a>
 </p>
 
-- התחברו ל־Railway והקימו פרויקט חדש מהריפו.  
-- הגדירו Services נפרדים או תהליך מרובה:
-  - Web (Streamlit): פקודת Start לדוגמה  
-    <code>streamlit run app.py --server.port $PORT --server.address 0.0.0.0</code>
-  - Worker (Bot): פקודת Start לדוגמה  
-    <code>python bot.py</code>
-- הגדירו משתני סביבה חשובים:
-  - <code>TELEGRAM_BOT_TOKEN</code> — טוקן של BotFather.
-  - <code>PORT</code> — בד&quot;כ מוקצה אוטומטית ב־Railway.
-  - משתנים נוספים לפי הצורך (API keys, וכו').
-- פרסו וצפו בלוגים (Logs) עד שהשירותים פעילים.
+<p>
+- התחברו ל־Railway והקימו פרויקט חדש מהריפו.  <br>
+- הגדירו Services נפרדים או תהליך מרובה: <br>
+&nbsp;&nbsp;• Web (Streamlit) — פקודת Start: <code>streamlit run app.py --server.port $PORT --server.address 0.0.0.0</code><br>
+&nbsp;&nbsp;• Worker (Bot) — פקודת Start: <code>python bot.py</code><br>
+- משתני סביבה: <code>TELEGRAM_BOT_TOKEN</code>, <code>PORT</code>, ועוד לפי הצורך. <br>
+- עקבו אחרי הלוגים (Logs) עד שהשירותים פעילים.
+
+
+<h2>🤝 תרומה (Contributing)</h2>
+- מזמינים Pull Requests ושיפורים.  
+- פתחו Issue להצעות/באגים.  
+- שמרו על קוד נקי ותיעוד קצר ב־PR.
+
+<h2>📬 יצירת קשר</h2>
+- טלגרם: <a href="https://t.me/maydatabot123_bot" target="_blank">@maydatabot123_bot</a>  
+- Issues: <a href="https://github.com/Artisa111/databot-analytics/issues" target="_blank">github.com/Artisa111/databot-analytics/issues</a>  
 
 <h2>📣 שתפו בלינקדאין</h2>
 
@@ -166,6 +199,22 @@ Welcome to DataBot Analytics — a friendly Streamlit web app paired with a Tele
 
 <sub>Note: adjust the list to match your bot’s actual commands.</sub>
 
+## 🖼️ Gallery / Preview
+
+<!-- Images: change paths if you store files in a different folder -->
+<p align="center">
+  <img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="85%"><br>
+  <sub>Clean home screen with quick navigation and demo data loaders</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/bot-commands.png" alt="Telegram bot — commands" width="45%">
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="45%">
+  <br>
+  <sub>Telegram bot: help, commands, and automatic visualizations</sub>
+</p>
+
 ## 🛠 Install & Run Locally
 
 1) Clone:
@@ -203,21 +252,30 @@ python bot.py
 ```
 
 ## ☁️ Deploy to Railway
-<p>
-  <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank" style="display:inline-block;padding:10px 16px;background:#0B0D0E;color:#fff;border-radius:8px;margin:4px;text-decoration:none;font-weight:600">🚀 One‑click Deploy on Railway</a>
+
+<p align="center">
+  <!-- Optional visual button -->
+  <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank">
+    <img src="assets/buttons/deploy-railway.png" alt="Deploy on Railway" height="48">
+  </a>
 </p>
 
 - Sign in to Railway and create a new project from this repo.  
-- Configure either two services (Web + Worker) or a multi‑process Procfile:
-  - Web (Streamlit) Start command  
-    `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
-  - Worker (Bot) Start command  
-    `python bot.py`
-- Set environment variables:
-  - `TELEGRAM_BOT_TOKEN` — BotFather token.
-  - `PORT` — usually auto‑assigned by Railway for the web service.
-  - Any other keys your stack needs (e.g., API keys).
-- Deploy and watch logs until services are healthy.
+- Configure two services (Web + Worker) or a multi‑process setup:  
+  • Web (Streamlit) start: `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`  
+  • Worker (Bot) start: `python bot.py`  
+- Set environment variables: `TELEGRAM_BOT_TOKEN`, `PORT`, and any others you need.  
+- Deploy and monitor logs until both services are healthy.
+
+
+## 🤝 Contributing
+- Pull Requests are welcome!  
+- Open an Issue for feature requests/bug reports.  
+- Keep code clean and include concise PR descriptions.
+
+## 📬 Contact
+- Telegram: <a href="https://t.me/maydatabot123_bot" target="_blank">@maydatabot123_bot</a>  
+- Issues: <a href="https://github.com/Artisa111/databot-analytics/issues" target="_blank">github.com/Artisa111/databot-analytics/issues</a>
 
 ## 📣 Share on LinkedIn
 
