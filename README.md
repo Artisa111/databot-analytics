@@ -75,14 +75,20 @@ Repository: https://github.com/Artisa111/databot-analytics
 
 <!-- תמונות: שנו את הנתיבים אם שמתם קבצים בתיקייה אחרת -->
 <p align="center">
-  <img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="85%"><br>
+  <a href="https://databot-analytics-1.streamlit.app/#data-bot-analytics-pro" target="_blank">
+    <img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="85%">
+  </a><br>
   <sub>מסך בית אינטואיטיבי עם ניווט מהיר וטעינת דוגמאות נתונים</sub>
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/bot-commands.png" alt="פקודות הבוט בטלגרם" width="45%">
+  <a href="https://t.me/maydatabot123_bot" target="_blank">
+    <img src="assets/screenshots/bot-commands.png" alt="פקודות הבוט בטלגרם" width="45%">
+  </a>
   &nbsp;&nbsp;
-  <img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="45%">
+  <a href="https://t.me/maydatabot123_bot" target="_blank">
+    <img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="45%">
+  </a>
   <br>
   <sub>בוט טלגרם: עזרה, פקודות וגרפים אוטומטיים</sub>
 </p>
@@ -123,7 +129,7 @@ export PORT=8501
 <p align="center">
   <!-- כפתור תדמיתי (לא חובה) -->
   <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank">
-    <img src="assets/buttons/deploy-railway.png" alt="Deploy on Railway" height="48">
+    <img src="assets/buttons/deploy-railway.svg" alt="Deploy on Railway" height="48">
   </a>
 </p>
 
@@ -202,14 +208,20 @@ Welcome to DataBot Analytics — a friendly Streamlit web app paired with a Tele
 
 <!-- Images: change paths if you store files in a different folder -->
 <p align="center">
-  <img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="85%"><br>
+  <a href="https://databot-analytics-1.streamlit.app/#data-bot-analytics-pro" target="_blank">
+    <img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="85%">
+  </a><br>
   <sub>Clean home screen with quick navigation and demo data loaders</sub>
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/bot-commands.png" alt="Telegram bot — commands" width="45%">
+  <a href="https://t.me/maydatabot123_bot" target="_blank">
+    <img src="assets/screenshots/bot-commands.png" alt="Telegram bot — commands" width="45%">
+  </a>
   &nbsp;&nbsp;
-  <img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="45%">
+  <a href="https://t.me/maydatabot123_bot" target="_blank">
+    <img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="45%">
+  </a>
   <br>
   <sub>Telegram bot: help, commands, and automatic visualizations</sub>
 </p>
@@ -255,7 +267,7 @@ python bot.py
 <p align="center">
   <!-- Optional visual button -->
   <a href="https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2FArtisa111%2Fdatabot-analytics" target="_blank">
-    <img src="assets/buttons/deploy-railway.png" alt="Deploy on Railway" height="48">
+    <img src="assets/buttons/deploy-railway.svg" alt="Deploy on Railway" height="48">
   </a>
 </p>
 
