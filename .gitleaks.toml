@@ -1,0 +1,21 @@
+# Gitleaks configuration for DataBot Analytics
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+# Use default gitleaks configuration as base
+useDefault = true
+
+[allowlist]
+description = "Allowlist for known placeholders and false positives"
+
+# Allow common placeholder values as regexes
+regexes = [
+    '''(your_bot_token_here|YOUR_BOT_TOKEN|TELEGRAM_TOKEN=\s*$|TELEGRAM_TOKEN=$)''',
+    '''(test_token|fake_token|dummy_token|example_token|placeholder_token)''',
+    '''(your_token_here|<your.*token>|TOKEN_PLACEHOLDER)'''
+]
+
+# Allow example configuration files
+paths = [
+    '''\.env\.example$'''
+]
