@@ -88,7 +88,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 
 ### 📊 דוגמת ניתוח נתונים
 <div align="right">
-<img src="assets/screenshots/pair-plot-analysis.png" alt="ניתוח Pair Plot" width="60%">
+<img src="assets/screenshots/bot-pairplot..png" alt="ניתוח Pair Plot" width="60%">
 </div>
 
 <p align="right"><em>ניתוח מתקדם עם מטריצת קורלציות ותרשימי פיזור</em></p>
