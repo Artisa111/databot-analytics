@@ -76,7 +76,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 <table dir="rtl">
 <tr>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="95%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="דוגמת גרף Pair Plot מהבוט" width="95%">
 <p align="right"><em>גרפים אוטומטיים ותרשימי ניתוח</em></p>
 </td>
 <td width="50%" align="right">
@@ -274,7 +274,7 @@ python bot.py
 <p align="center"><em>Bot interface and available commands</em></p>
 </td>
 <td width="50%">
-<img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="95%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="Telegram bot — pair plot example" width="95%">
 <p align="center"><em>Automatic visualizations and analysis charts</em></p>
 </td>
 </tr>
