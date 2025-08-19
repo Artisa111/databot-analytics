@@ -67,7 +67,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 
 ### 🏠 מסך הבית של האפליקציה
 <div align="right">
-<img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="90%">
+<img src="assets/screenshots/app-home.png" alt="מסך הבית — DataBot Analytics" width="70%">
 </div>
 
 <p align="right"><em>מסך בית אינטואיטיבי עם ניווט מהיר וטעינת דוגמאות נתונים</em></p>
@@ -76,7 +76,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 <table dir="rtl">
 <tr>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
 <p align="right"><em>גרפים אוטומטיים ותרשימי ניתוח</em></p>
 </td>
 <td width="50%" align="right">
@@ -88,7 +88,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 
 ### 📊 דוגמת ניתוח נתונים
 <div align="right">
-<img src="assets/screenshots/pair-plot-analysis.png" alt="ניתוח Pair Plot" width="90%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="ניתוח Pair Plot" width="60%">
 </div>
 
 <p align="right"><em>ניתוח מתקדם עם מטריצת קורלציות ותרשימי פיזור</em></p>
@@ -262,7 +262,7 @@ python bot.py
 <div align="center">
 
 ### 🏠 App Home Screen
-<img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="90%">
+<img src="assets/screenshots/app-home.png" alt="DataBot Analytics — Home screen" width="70%">
 
 *Clean home screen with quick navigation and demo data loaders*
 
@@ -274,14 +274,14 @@ python bot.py
 <p align="center"><em>Bot interface and available commands</em></p>
 </td>
 <td width="50%">
-<img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="100%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="Telegram bot — pair plot example" width="100%">
 <p align="center"><em>Automatic visualizations and analysis charts</em></p>
 </td>
 </tr>
 </table>
 
 ### 📊 Data Analysis Example
-<img src="assets/screenshots/pair-plot-analysis.png" alt="Pair Plot Analysis" width="90%">
+<img src="assets/screenshots/pair-plot-analysis.png" alt="Pair Plot Analysis" width="60%">
 
 *Advanced analysis with correlation matrix and scatter plots*
 
