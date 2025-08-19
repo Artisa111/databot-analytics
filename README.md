@@ -274,7 +274,7 @@ python bot.py
 <p align="center"><em>Bot interface and available commands</em></p>
 </td>
 <td width="50%">
-<img src="assets/screenshots/pair-plot-analysis.png" alt="Telegram bot — pair plot example" width="100%">
+<img src="assets/screenshots/bot-pairplot.png" alt="Telegram bot — pair plot example" width="100%">
 <p align="center"><em>Automatic visualizations and analysis charts</em></p>
 </td>
 </tr>
