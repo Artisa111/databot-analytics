@@ -76,7 +76,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 <table dir="rtl">
 <tr>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-pairplot..png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
+<img src="assets/screenshots/bot-pairplot.png" alt="דוגמת גרף Pair Plot מהבוט" width="100%">
 <p align="right"><em>גרפים אוטומטיים ותרשימי ניתוח</em></p>
 </td>
 <td width="50%" align="right">
