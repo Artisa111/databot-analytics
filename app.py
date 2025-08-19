@@ -100,7 +100,7 @@ def main():
     st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
     # Mobile warning
-    st.warning("⚠️ For better performance with large files, use the desktop version!")
+    st.warning("🙌 The application is presented as a project; it shouldn't be taken too seriously. Thank you for trying out my application!")
     
     with st.sidebar:
         st.markdown("### 🎯 Navigation")
