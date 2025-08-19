@@ -6,7 +6,7 @@ import threading
 import time
 import platform
 
-# Colored output and emojis
+# Colored output
 import colorama
 from colorama import Fore, Style
 colorama.init()
@@ -17,12 +17,12 @@ if platform.system() == "Windows":
 
 # Run the bot
 def run_bot():
-    print(Fore.CYAN + "🤖 Starting bot..." + Style.RESET_ALL)
+    print(Fore.CYAN + "Starting bot..." + Style.RESET_ALL)
     subprocess.run([sys.executable, "bot.py"], check=True)
 
 # Run Streamlit
 def run_streamlit():
-    print(Fore.GREEN + "📊 Starting Streamlit..." + Style.RESET_ALL)
+    print(Fore.GREEN + "Starting Streamlit..." + Style.RESET_ALL)
     subprocess.run(["streamlit", "run", "app.py"], check=True)
 
 # Main entrypoint
