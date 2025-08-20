@@ -106,17 +106,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Mobile-specific Streamlit configuration
+# Mobile-specific configuration (simplified)
 if 'mobile_config_set' not in st.session_state:
-    # Set upload limits for mobile
-    import streamlit.web.server.upload_data_provider as upload_provider
-    try:
-        # Try to set lower limits for mobile
-        original_max_size = getattr(upload_provider, 'MAX_FILE_SIZE_MB', 200)
-        if hasattr(upload_provider, 'MAX_FILE_SIZE_MB'):
-            upload_provider.MAX_FILE_SIZE_MB = 10  # 10MB limit
-    except:
-        pass
+    # Just set a flag for mobile optimizations
+    # We'll handle file size limits in the upload function
     st.session_state.mobile_config_set = True
 
 # CSS styles with mobile enhancements
