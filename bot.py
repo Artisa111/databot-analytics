@@ -1,3 +1,33 @@
+#!/usr/bin/env python3
+"""
+========================================================================
+                    DATABOT ANALYTICS PRO - TELEGRAM BOT
+========================================================================
+
+Description:
+    Advanced data analysis and machine learning Telegram bot that provides
+    comprehensive analytics, visualizations, and insights for CSV/Excel files.
+    
+Features:
+    - Quick statistical analysis and data quality assessment
+    - Interactive visualizations and charts
+    - Machine learning analysis (clustering, PCA, anomaly detection)
+    - Comprehensive reporting with business insights
+    - Advanced statistical computations
+    - Support for CSV and Excel files up to 50MB
+
+Author: Artur
+Quote: "Data is Love - take care of your data"
+
+Requirements:
+    - python-telegram-bot>=20.0
+    - pandas, numpy, plotly, matplotlib, seaborn
+    - scikit-learn, scipy
+    - openpyxl, xlrd for Excel support
+
+========================================================================
+"""
+
 import logging
 from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
@@ -26,10 +56,27 @@ load_dotenv()
 # Get token
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-# Setup logging
+# ========================================================================
+#                           CONFIGURATION SETUP
+# ========================================================================
+
+# Setup logging configuration
 logging.basicConfig(level=logging.INFO)
 
+# ========================================================================
+#                         MAIN BOT CLASS
+# ========================================================================
+
 class DataAnalyticsBot:
+    """
+    Main Telegram bot class for data analytics operations.
+    
+    This class handles all bot functionality including:
+    - File processing and data validation
+    - Statistical analysis and machine learning
+    - Visualization generation
+    - Report creation and insights
+    """
     def __init__(self):
         if not TOKEN:
             raise ValueError("TELEGRAM_TOKEN not found in .env file!")
@@ -37,14 +84,18 @@ class DataAnalyticsBot:
         self.application = Application.builder().token(TOKEN).build()
         self.setup_handlers()
     
+    # ================================================================
+    #                      BOT INITIALIZATION METHODS
+    # ================================================================
+    
     async def setup_bot_commands(self):
-        """Setup bot commands for the menu button"""
+        """Setup bot commands for the menu button interface"""
         commands = [
-            BotCommand("start", "🚀 Launching the bot and the main menu"),
-            BotCommand("analyze", "📊 Quick Data Analysis"),
-            BotCommand("visualize", "🎨 Creating visualizations"),
-            BotCommand("ml", "🤖 Machine Learning"),
-            BotCommand("report", "📋 Full report"),
+            BotCommand("start", "🚀 Launch bot and main menu"),
+            BotCommand("analyze", "📊 Quick data analysis"),
+            BotCommand("visualize", "🎨 Create visualizations"),
+            BotCommand("ml", "🤖 Machine learning analysis"),
+            BotCommand("report", "📋 Generate full report"),
             BotCommand("stats", "📈 Advanced statistics"),
             BotCommand("help", "❓ Help and commands")
         ]
@@ -65,8 +116,17 @@ class DataAnalyticsBot:
         self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
     
+    # ================================================================
+    #                      MAIN BOT COMMAND HANDLERS
+    # ================================================================
+    
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Start command with interactive buttons"""
+        """
+        Main start command handler.
+        
+        Sets up bot commands and displays welcome message with inline keyboard.
+        This is the entry point for users to begin using the bot.
+        """
         # Setup bot commands on first start
         await self.setup_bot_commands()
         
@@ -85,7 +145,7 @@ Advanced data analysis and machine learning at your fingertips.
 
 📁 **Supported Formats:** CSV, Excel (XLS/XLSX)
 
-**💡 Используйте кнопку меню (□) рядом с полем ввода для быстрого доступа к командам!**
+**💡 Use the menu button (□) next to the input field for quick access to commands!**
 
 **Choose an option below or upload your data file to begin!**
         """
@@ -153,7 +213,7 @@ Advanced data analysis and machine learning at your fingertips.
 • Actionable conclusions
 
 📁 **Supported Formats:**
-CSV, Excel (XLS/XLSX) - Up to 20MB
+CSV, Excel (XLS/XLSX) - Up to 50MB
 
 💡 **Getting Started:**
 1. Send /start for interactive menu
@@ -208,7 +268,7 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
                 await update.message.reply_text(
                     "❌ **Unsupported file format!**\n"
                     "📁 Please send CSV, XLS, or XLSX files only.\n"
-                    "Maximum file size: 20MB",
+                    "Maximum file size: 50MB",
                     parse_mode='Markdown'
                 )
                 return
@@ -524,8 +584,12 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
             else:
                 await update.message.reply_text(error_msg, parse_mode='Markdown')
     
+    # ================================================================
+    #                      MESSAGE AND FILE HANDLERS
+    # ================================================================
+    
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle text messages"""
+        """Handle text messages from users"""
         text = update.message.text.lower()
         
         if any(word in text for word in ['hello', 'hi', 'hey']):
@@ -546,8 +610,21 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
                 "Send /help for available commands or upload a data file."
             )
     
+    # ================================================================
+    #                      DATA ANALYSIS CORE METHODS
+    # ================================================================
+    
     def quick_analysis(self, df, filename):
-        """Enhanced quick data analysis with quality metrics"""
+        """
+        Perform quick data analysis with quality metrics.
+        
+        Args:
+            df: Pandas DataFrame with uploaded data
+            filename: Name of the uploaded file
+            
+        Returns:
+            str: Formatted analysis results with metrics and insights
+        """
         numeric_cols = df.select_dtypes(include=['number']).columns
         text_cols = df.select_dtypes(include=['object']).columns
         datetime_cols = df.select_dtypes(include=['datetime']).columns
@@ -577,11 +654,27 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
 
 🔍 **Data Quality Assessment:**
 • **Missing Values:** {missing_count:,} ({100 * missing_count / total_cells:.1f}%)
-• **Duplicate Rows:** {duplicate_count:,}
+• **Duplicate Rows:** {duplicate_count:,} ({100 * duplicate_count / len(df):.1f}%)
 • **Unique Rows:** {len(df) - duplicate_count:,}
 
+📉 **Column Missing Data Summary:**"""
+        
+        # Add missing data details for columns
+        missing_by_col = df.isnull().sum().sort_values(ascending=False)
+        columns_with_missing = missing_by_col[missing_by_col > 0]
+        
+        if len(columns_with_missing) > 0:
+            for col, missing_count in columns_with_missing.head(5).items():
+                missing_pct = (missing_count / len(df)) * 100
+                status = "🔴" if missing_pct > 20 else "🟡" if missing_pct > 5 else "🟢"
+                analysis += f"\n• {status} **{col}**: {missing_pct:.1f}% missing ({missing_count:,} values)"
+        else:
+            analysis += "\n• ✅ **No missing data found** - Excellent data quality!"
+        
+        analysis += f"""
+
 ✅ **Status:** Data successfully loaded and validated!
-📊 Choose an analysis option below to continue.
+📊 Use the menu button (□) or options below to continue analysis.
         """
         
         return analysis
@@ -642,6 +735,16 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
             else:
                 analysis += "• No significant correlations detected\n"
 
+        # Missing data analysis for all columns
+        missing_by_col = df.isnull().sum().sort_values(ascending=False)
+        if missing_by_col.sum() > 0:
+            analysis += f"\n📉 **Missing Data Analysis:**\n"
+            top_missing = missing_by_col[missing_by_col > 0].head(5)
+            for col, missing_count in top_missing.items():
+                missing_pct = (missing_count / len(df)) * 100
+                status = "⚠️" if missing_pct > 10 else "🟡"
+                analysis += f"• {status} **{col}**: {missing_pct:.1f}% missing ({missing_count:,} values)\n"
+        
         # Data quality insights
         analysis += f"\n🎯 **Data Quality & Business Insights:**\n"
         
@@ -688,8 +791,17 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
         
         return analysis
     
+    # ================================================================
+    #                      VISUALIZATION METHODS
+    # ================================================================
+    
     async def send_basic_charts(self, update: Update, context: ContextTypes.DEFAULT_TYPE, df):
-        """Send basic charts to user"""
+        """
+        Generate and send basic visualization charts.
+        
+        Creates a dashboard with distribution, correlation, and scatter plots
+        using Plotly for interactive charts.
+        """
         try:
             numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
             
@@ -895,8 +1007,25 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
         except Exception as e:
             await update.message.reply_text(f"❌ Error creating advanced charts: {str(e)}")
     
+    # ================================================================
+    #                      MACHINE LEARNING METHODS
+    # ================================================================
+    
     def perform_ml_analysis(self, X, X_scaled, numeric_cols, filename):
-        """Comprehensive machine learning analysis"""
+        """
+        Perform comprehensive machine learning analysis.
+        
+        Includes clustering, PCA, and anomaly detection with detailed insights.
+        
+        Args:
+            X: Original feature matrix
+            X_scaled: Standardized feature matrix
+            numeric_cols: List of numeric column names
+            filename: Name of analyzed file
+            
+        Returns:
+            str: Formatted ML analysis results
+        """
         results = f"""
 🤖 **Machine Learning Analysis: `{filename}`**
 
@@ -1040,11 +1169,15 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
 **Column-wise Quality:**
 """
         
-        for col in df.columns[:8]:  # First 8 columns
-            missing_col = df[col].isnull().sum()
+        # Show columns with most missing data first
+        missing_by_col = df.isnull().sum().sort_values(ascending=False)
+        top_missing_cols = missing_by_col.head(8)  # Top 8 columns with most missing data
+        
+        for col in top_missing_cols.index:
+            missing_col = missing_by_col[col]
             missing_col_pct = (missing_col / len(df)) * 100
             status = "✅" if missing_col_pct < 5 else "⚠️" if missing_col_pct < 20 else "❌"
-            report += f"• {status} **{col}**: {missing_col_pct:.1f}% missing\n"
+            report += f"• {status} **{col}**: {missing_col_pct:.1f}% missing ({missing_col:,} values)\n"
 
         # Statistical insights for numeric data
         if len(numeric_cols) > 0:
@@ -1642,24 +1775,50 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
                 text=f"❌ Error creating statistical charts: {str(e)}"
             )
     
+    # ================================================================
+    #                      BOT RUNTIME METHODS
+    # ================================================================
+    
     def run(self):
-        """Run the bot"""
-        print("🤖 Starting DataBot Analytics...")
+        """
+        Start the bot and begin polling for messages.
+        
+        This method initializes the bot and starts the main event loop
+        to handle incoming messages from Telegram.
+        """
+        print("🤖 Starting DataBot Analytics Pro...")
         print(f"🔑 Token found: {TOKEN[:10]}...")
-        print("✅ Bot is ready!")
+        print("✅ Bot is ready and operational!")
         print("📱 Find your bot on Telegram and send /start")
-        print("🔄 Press Ctrl+C to stop")
+        print("🔄 Press Ctrl+C to stop the bot")
+        print("👤 Created by: Artur")
+        print("💝 Remember: Data is Love - take care of your data")
         self.application.run_polling()
 
+# ========================================================================
+#                           MAIN EXECUTION
+# ========================================================================
+
 if __name__ == "__main__":
+    """
+    Main execution block.
+    
+    Initializes and runs the DataBot Analytics Pro with proper error handling.
+    Author: Artur
+    Philosophy: "Data is Love - take care of your data"
+    """
     try:
         bot = DataAnalyticsBot()
         bot.run()
     except ValueError as e:
-        print(f"❌ Error: {e}")
-        print("💡 Check your .env file and bot token!")
+        print(f"❌ Configuration Error: {e}")
+        print("💡 Please check your .env file and bot token!")
         print("📝 Your .env file should contain:")
-        print("TELEGRAM_TOKEN=your_token_here")
+        print("TELEGRAM_TOKEN=your_telegram_bot_token_here")
+        print("\n👤 Author: Artur")
+        print("💝 Data is Love - take care of your data")
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        print("💡 Check your internet connection and bot token!")
+        print(f"❌ Unexpected error occurred: {e}")
+        print("💡 Please check your internet connection and bot configuration!")
+        print("\n👤 Author: Artur") 
+        print("💝 Data is Love - take care of your data")
