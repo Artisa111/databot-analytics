@@ -1,5 +1,5 @@
 import logging
-from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import pandas as pd
 import io
@@ -37,19 +37,19 @@ class DataAnalyticsBot:
         self.application = Application.builder().token(TOKEN).build()
         self.setup_handlers()
     
-    def get_main_keyboard(self):
-        """Create persistent main menu keyboard"""
-        keyboard = [
-            [KeyboardButton("📊 Quick Analysis"), KeyboardButton("🎨 Visualizations")],
-            [KeyboardButton("🤖 Machine Learning"), KeyboardButton("📋 Full Report")],
-            [KeyboardButton("📈 Advanced Stats"), KeyboardButton("❓ Help & Commands")]
+    async def setup_bot_commands(self):
+        """Setup bot commands for the menu button"""
+        commands = [
+            BotCommand("start", "🚀 Запуск бота и главное меню"),
+            BotCommand("analyze", "📊 Быстрый анализ данных"),
+            BotCommand("visualize", "🎨 Создание визуализаций"),
+            BotCommand("ml", "🤖 Машинное обучение"),
+            BotCommand("report", "📋 Полный отчет"),
+            BotCommand("stats", "📈 Продвинутая статистика"),
+            BotCommand("help", "❓ Справка и команды")
         ]
-        return ReplyKeyboardMarkup(
-            keyboard, 
-            resize_keyboard=True, 
-            persistent=True,
-            one_time_keyboard=False
-        )
+        await self.application.bot.set_my_commands(commands)
+    
     
     def setup_handlers(self):
         """Setup command handlers"""
@@ -67,6 +67,9 @@ class DataAnalyticsBot:
     
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start command with interactive buttons"""
+        # Setup bot commands on first start
+        await self.setup_bot_commands()
+        
         welcome_text = """
 🚀 **Welcome to DataBot Analytics Pro!**
 
@@ -81,6 +84,8 @@ Advanced data analysis and machine learning at your fingertips.
 • 💡 Actionable Recommendations
 
 📁 **Supported Formats:** CSV, Excel (XLS/XLSX)
+
+**💡 Используйте кнопку меню (□) рядом с полем ввода для быстрого доступа к командам!**
 
 **Choose an option below or upload your data file to begin!**
         """
@@ -109,12 +114,6 @@ Advanced data analysis and machine learning at your fingertips.
             reply_markup=reply_markup
         )
         
-        # Add persistent main menu keyboard
-        await update.message.reply_text(
-            "🎯 **Используйте кнопки меню внизу для быстрого доступа к функциям!**",
-            parse_mode='Markdown',
-            reply_markup=self.get_main_keyboard()
-        )
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced help command with detailed information"""
@@ -259,12 +258,6 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
             await update.message.reply_text("🎨 **Generating preview visualization...**")
             await self.send_basic_charts(update, context, df)
             
-            # Show persistent menu
-            await update.message.reply_text(
-                "💡 **Теперь используйте кнопки меню внизу для анализа данных!**",
-                parse_mode='Markdown',
-                reply_markup=self.get_main_keyboard()
-            )
             
         except Exception as e:
             await update.message.reply_text(f"❌ Error processing file: {str(e)}")
@@ -532,42 +525,26 @@ CSV, Excel (XLS/XLSX) - Up to 20MB
                 await update.message.reply_text(error_msg, parse_mode='Markdown')
     
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle text messages and menu button presses"""
-        text = update.message.text
+        """Handle text messages"""
+        text = update.message.text.lower()
         
-        # Handle menu button presses
-        if text == "📊 Quick Analysis":
-            await self.analyze(update, context)
-        elif text == "🎨 Visualizations":
-            await self.visualize(update, context)
-        elif text == "🤖 Machine Learning":
-            await self.machine_learning(update, context)
-        elif text == "📋 Full Report":
-            await self.generate_report(update, context)
-        elif text == "📈 Advanced Stats":
-            await self.advanced_statistics(update, context)
-        elif text == "❓ Help & Commands":
+        if any(word in text for word in ['hello', 'hi', 'hey']):
+            await update.message.reply_text("👋 Hello! Send /start to begin!")
+        elif 'help' in text:
             await self.help_command(update, context)
+        elif any(word in text for word in ['thanks', 'thank you']):
+            await update.message.reply_text("😊 You're welcome! Happy to help!")
+        elif any(word in text for word in ['chart', 'graph', 'plot']):
+            await update.message.reply_text(
+                "📈 To create charts:\n"
+                "1. Upload a data file (CSV/Excel)\n"
+                "2. Use /visualize or /charts command"
+            )
         else:
-            # Handle other text messages
-            text_lower = text.lower()
-            if any(word in text_lower for word in ['hello', 'hi', 'hey']):
-                await update.message.reply_text("👋 Hello! Send /start to begin!")
-            elif 'help' in text_lower:
-                await self.help_command(update, context)
-            elif any(word in text_lower for word in ['thanks', 'thank you']):
-                await update.message.reply_text("😊 You're welcome! Happy to help!")
-            elif any(word in text_lower for word in ['chart', 'graph', 'plot']):
-                await update.message.reply_text(
-                    "📈 To create charts:\n"
-                    "1. Upload a data file (CSV/Excel)\n"
-                    "2. Use /visualize or /charts command"
-                )
-            else:
-                await update.message.reply_text(
-                    "🤔 I don't understand.\n"
-                    "Send /help for available commands or upload a data file."
-                )
+            await update.message.reply_text(
+                "🤔 I don't understand.\n"
+                "Send /help for available commands or upload a data file."
+            )
     
     def quick_analysis(self, df, filename):
         """Enhanced quick data analysis with quality metrics"""
