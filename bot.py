@@ -1723,11 +1723,113 @@ class AdvancedDataAnalyticsBot:
                 reply_markup=self.get_persistent_keyboard()
             )
     
-    async def send_advanced_chart_collection(self, update: Context, context: ContextTypes.DEFAULT_TYPE, df):
+    async def send_advanced_chart_collection(self, update: Update, context: ContextTypes.DEFAULT_TYPE, df):
         """Send advanced specialized chart collection"""
-        # This method would contain additional specialized charts
-        # Implementation similar to above methods
-        pass
+        try:
+            numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+            text_cols = df.select_dtypes(include=['object']).columns.tolist()
+            
+            if len(numeric_cols) == 0:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="📊 No numeric columns found for advanced charts.",
+                    reply_markup=self.get_persistent_keyboard()
+                )
+                return
+            
+            charts_created = 0
+            
+            # Create advanced statistical visualization
+            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+            fig.suptitle('🎨 Advanced Chart Collection', fontsize=16, fontweight='bold')
+            
+            # 1. Enhanced distribution plot
+            if len(numeric_cols) >= 1:
+                col = numeric_cols[0]
+                axes[0, 0].hist(df[col].dropna(), bins=30, alpha=0.7, color='skyblue', edgecolor='black')
+                axes[0, 0].set_title(f'Enhanced Distribution: {col}')
+                axes[0, 0].set_xlabel(col)
+                axes[0, 0].set_ylabel('Frequency')
+                axes[0, 0].grid(True, alpha=0.3)
+                
+                # Add mean and median lines
+                mean_val = df[col].mean()
+                median_val = df[col].median()
+                axes[0, 0].axvline(mean_val, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_val:.2f}')
+                axes[0, 0].axvline(median_val, color='orange', linestyle='--', linewidth=2, label=f'Median: {median_val:.2f}')
+                axes[0, 0].legend()
+            
+            # 2. Box plot comparison
+            if len(numeric_cols) >= 1:
+                box_data = [df[col].dropna() for col in numeric_cols[:5]]
+                bp = axes[0, 1].boxplot(box_data, labels=numeric_cols[:5], patch_artist=True)
+                
+                colors = ['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightpink']
+                for patch, color in zip(bp['boxes'], colors[:len(bp['boxes'])]):
+                    patch.set_facecolor(color)
+                    patch.set_alpha(0.7)
+                
+                axes[0, 1].set_title('Multi-Variable Box Plot Analysis')
+                axes[0, 1].set_ylabel('Values')
+                axes[0, 1].tick_params(axis='x', rotation=45)
+                axes[0, 1].grid(True, alpha=0.3)
+            
+            # 3. Correlation heatmap
+            if len(numeric_cols) > 1:
+                corr_matrix = df[numeric_cols[:8]].corr()
+                im = axes[1, 0].imshow(corr_matrix, cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
+                axes[1, 0].set_title('Advanced Correlation Heatmap')
+                axes[1, 0].set_xticks(range(len(corr_matrix.columns)))
+                axes[1, 0].set_yticks(range(len(corr_matrix.columns)))
+                axes[1, 0].set_xticklabels(corr_matrix.columns, rotation=45, ha='right')
+                axes[1, 0].set_yticklabels(corr_matrix.columns)
+                plt.colorbar(im, ax=axes[1, 0], fraction=0.046, pad=0.04)
+            
+            # 4. Scatter plot with trend
+            if len(numeric_cols) >= 2:
+                x_col, y_col = numeric_cols[0], numeric_cols[1]
+                axes[1, 1].scatter(df[x_col], df[y_col], alpha=0.6, color='purple', s=50)
+                axes[1, 1].set_title(f'Scatter Plot: {x_col} vs {y_col}')
+                axes[1, 1].set_xlabel(x_col)
+                axes[1, 1].set_ylabel(y_col)
+                axes[1, 1].grid(True, alpha=0.3)
+                
+                # Add trend line
+                try:
+                    z = np.polyfit(df[x_col].dropna(), df[y_col].dropna(), 1)
+                    p = np.poly1d(z)
+                    axes[1, 1].plot(df[x_col], p(df[x_col]), "r--", alpha=0.8, linewidth=2)
+                except:
+                    pass
+            
+            plt.tight_layout()
+            
+            chart_path = 'advanced_chart_collection.png'
+            plt.savefig(chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            
+            with open(chart_path, 'rb') as chart_file:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=chart_file,
+                    caption="🎨 **Advanced Chart Collection**\n\nSpecialized visualizations with enhanced statistical analysis and trend detection."
+                )
+            
+            os.remove(chart_path)
+            charts_created += 1
+            
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"✅ **Advanced Charts Complete!** Generated {charts_created} specialized visualizations.",
+                reply_markup=self.get_persistent_keyboard()
+            )
+            
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"❌ Error creating advanced charts: {str(e)}",
+                reply_markup=self.get_persistent_keyboard()
+            )
     
     async def send_enhanced_ml_charts(self, update: Update, context: ContextTypes.DEFAULT_TYPE, X, X_scaled, numeric_cols):
         """Send enhanced machine learning visualization charts"""
@@ -2195,27 +2297,33 @@ class AdvancedDataAnalyticsBot:
             )
     
     def run(self):
-        """Run the enhanced bot"""
+        """Run the enhanced bot - Railway compatible"""
         print("🚀 Starting Advanced DataBot Analytics Pro...")
         print(f"🔑 Token found: {TOKEN[:10]}...")
         print("✅ Enhanced bot is ready with persistent menu!")
-        print("📱 Find your bot on Telegram and send /start")
+        print("📱 Bot is running and ready for connections")
         print("🎯 Features: Multi-format support, advanced ML, comprehensive reports")
-        print("🔄 Press Ctrl+C to stop")
-        self.application.run_polling()
+        
+        # Railway compatible polling
+        try:
+            self.application.run_polling(
+                drop_pending_updates=True,
+                allowed_updates=Update.ALL_TYPES
+            )
+        except Exception as e:
+            print(f"Error running bot: {e}")
+            # Fallback for Railway
+            self.application.run_polling()
 
 if __name__ == "__main__":
-   def run(self):
-    """Run the enhanced bot - Railway compatible"""
-    port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 Starting Advanced DataBot Analytics Pro on port {port}...")
-    print(f"🔑 Token found: {TOKEN[:10]}...")
-    print("✅ Enhanced bot is ready with persistent menu!")
-    print("📱 Bot is running and ready for connections")
-    print("🎯 Features: Multi-format support, advanced ML, comprehensive reports")
-    
-    # For Railway deployment
-    self.application.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES
-    )
+    try:
+        bot = AdvancedDataAnalyticsBot()
+        bot.run()
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+        print("💡 Check your .env file and bot token!")
+        print("📝 Your .env file should contain:")
+        print("TELEGRAM_TOKEN=your_token_here")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        print("💡 Check your internet connection and bot token!")
