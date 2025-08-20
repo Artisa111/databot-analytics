@@ -40,13 +40,13 @@ class DataAnalyticsBot:
     async def setup_bot_commands(self):
         """Setup bot commands for the menu button"""
         commands = [
-            BotCommand("start", "🚀 Запуск бота и главное меню"),
-            BotCommand("analyze", "📊 Быстрый анализ данных"),
-            BotCommand("visualize", "🎨 Создание визуализаций"),
-            BotCommand("ml", "🤖 Машинное обучение"),
-            BotCommand("report", "📋 Полный отчет"),
-            BotCommand("stats", "📈 Продвинутая статистика"),
-            BotCommand("help", "❓ Справка и команды")
+            BotCommand("start", "🚀 Launching the bot and the main menu"),
+            BotCommand("analyze", "📊 Quick Data Analysis"),
+            BotCommand("visualize", "🎨 Creating visualizations"),
+            BotCommand("ml", "🤖 Machine Learning"),
+            BotCommand("report", "📋 Full report"),
+            BotCommand("stats", "📈 Advanced statistics"),
+            BotCommand("help", "❓ Help and commands")
         ]
         await self.application.bot.set_my_commands(commands)
     
