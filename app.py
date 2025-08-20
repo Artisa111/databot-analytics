@@ -2,11 +2,12 @@
 def is_mobile_browser():
     """Detect if user is on mobile device"""
     try:
-        from streamlit.web.server.websocket_headers import _get_websocket_headers
-        headers = _get_websocket_headers()
+        # Use the new st.context.headers instead of deprecated _get_websocket_headers
+        headers = st.context.headers
         user_agent = headers.get('user-agent', '').lower() if headers else ''
         return any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
     except:
+        # Fallback: try to detect mobile from session state or return False
         return False
 
 # Show appropriate warnings
