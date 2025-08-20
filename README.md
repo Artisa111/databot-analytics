@@ -80,7 +80,7 @@ Repository: https://github.com/Artisa111/databot-analytics
 <p align="right"><em>גרפים אוטומטיים ותרשימי ניתוח</em></p>
 </td>
 <td width="50%" align="right">
-<img src="assets/screenshots/bot-commands.png" alt="פקודות הבוט בטלגרם" width="100%">
+<img src="assets/screenshots/bot-commands (2).png" alt="פקודות הבוט בטלגרם" width="100%">
 <p align="right"><em>ממשק הבוט והפקודות הזמינות</em></p>
 </td>
 </tr>
