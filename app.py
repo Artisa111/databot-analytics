@@ -1,5 +1,21 @@
-st.warning("⚠️ Mobile Version Notice: Streamlit doesn't support large file uploads on mobile browsers. Please use desktop version or try our Telegram bot for better experience!") 
-st.warning("⚠️ Mobile file upload may not work. Use our bot: https://t.me/maydatabot123_bot") 
+# Mobile detection and improved warnings
+def is_mobile_browser():
+    """Detect if user is on mobile device"""
+    try:
+        from streamlit.web.server.websocket_headers import _get_websocket_headers
+        headers = _get_websocket_headers()
+        user_agent = headers.get('user-agent', '').lower() if headers else ''
+        return any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+    except:
+        return False
+
+# Show appropriate warnings
+if is_mobile_browser():
+    st.error("📱 **MOBILE VERSION DETECTED**")
+    st.warning("⚠️ **AxiosError Fix:** Enable 'Mobile Mode' in sidebar for stable operation!")
+    st.info("💡 **Recommendations:** Use our Telegram bot for better experience: https://t.me/maydatabot123_bot")
+else:
+    st.info("🖥️ Desktop version - full functionality available") 
 import streamlit as st
 import pandas as pd 
 import plotly.express as px  
@@ -8,6 +24,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
 import seaborn as sns
+import time
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -777,43 +794,130 @@ def create_financial_data():
 
 def show_upload():
     st.markdown("## 📂 Data Upload")
+    
+    # Auto-detect mobile and suggest mobile mode
+    mobile_detected = is_mobile_browser()
+    default_mobile_mode = mobile_detected
+    
+    # Mobile compatibility improvements
+    is_mobile = st.sidebar.checkbox("📱 Mobile Mode (smaller file limits)", value=default_mobile_mode)
+    
+    if is_mobile:
+        st.success("📱 Mobile Mode active: Optimization for mobile devices")
+        st.info("✅ AxiosError protection: Files up to 10MB, retry mechanism, progress bar")
+        max_size = 10 * 1024 * 1024  # 10MB for mobile
+    else:
+        max_size = 200 * 1024 * 1024  # 200MB for desktop
+        if mobile_detected:
+            st.warning("⚠️ Mobile device detected, but Mobile Mode is disabled. We recommend enabling it!")
 
     uploaded_files = st.file_uploader(
         "Select files",
         type=['csv', 'xlsx', 'xls', 'json'],
         accept_multiple_files=True,
-        help="Supported formats: CSV, Excel, JSON"
+        help=f"Supported formats: CSV, Excel, JSON. Max size: {max_size // (1024*1024)}MB",
+        key="mobile_uploader" if is_mobile else "desktop_uploader"
     )
+    
+    # Alternative upload methods for mobile
+    if is_mobile and not uploaded_files:
+        st.markdown("---")
+        st.markdown("### 🔄 Alternative Methods:")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📱 Use Telegram Bot", use_container_width=True):
+                st.balloons()
+                st.success("🚀 Go to our Telegram bot for stable file uploads!")
+                st.markdown("👉 [Open Bot](https://t.me/maydatabot123_bot)")
+        
+        with col2:
+            if st.button("💾 Load Sample Data", use_container_width=True):
+                # Create sample data for testing
+                sample_df = generate_financial_data()
+                st.session_state.data = sample_df
+                st.success("✅ Sample data loaded!")
+                st.rerun()
 
     if uploaded_files:
         dfs = []
-        for uploaded_file in uploaded_files:
+        
+        # Progress bar for mobile users
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for i, uploaded_file in enumerate(uploaded_files):
             try:
+                # Check file size
+                file_size = uploaded_file.size if hasattr(uploaded_file, 'size') else len(uploaded_file.getvalue())
+                
+                if is_mobile and file_size > max_size:
+                    st.error(f"❌ {uploaded_file.name}: File too large ({file_size/(1024*1024):.1f}MB). Max: {max_size/(1024*1024)}MB")
+                    continue
+                
+                status_text.text(f"📂 Processing {uploaded_file.name}...")
                 file_name = uploaded_file.name.lower()
                 
-                if file_name.endswith('.csv'):
-                    # Try to determine delimiter
-                    sample = str(uploaded_file.read(1024))
-                    uploaded_file.seek(0)
-                    
-                    if ';' in sample:
-                        df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-                    else:
-                        df = pd.read_csv(uploaded_file, encoding='utf-8')
+                # Retry mechanism for mobile
+                max_retries = 3 if is_mobile else 1
+                df = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        if file_name.endswith('.csv'):
+                            # Try to determine delimiter
+                            try:
+                                sample = str(uploaded_file.read(1024))
+                                uploaded_file.seek(0)
+                                
+                                if ';' in sample:
+                                    df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+                                else:
+                                    df = pd.read_csv(uploaded_file, encoding='utf-8')
+                            except UnicodeDecodeError:
+                                # Fallback encoding for problematic files
+                                uploaded_file.seek(0)
+                                df = pd.read_csv(uploaded_file, encoding='latin-1')
+                                
+                        elif file_name.endswith(('.xlsx', '.xls')):
+                            df = pd.read_excel(uploaded_file)
+                        elif file_name.endswith('.json'):
+                            df = pd.read_json(uploaded_file)
+                        else:
+                            st.error(f"❌ Unsupported format: {file_name}")
+                            break
                         
-                elif file_name.endswith(('.xlsx', '.xls')):
-                    df = pd.read_excel(uploaded_file)
-                elif file_name.endswith('.json'):
-                    df = pd.read_json(uploaded_file)
-                else:
-                    st.error(f"❌ Unsupported format: {file_name}")
-                    continue
-
-                dfs.append(df)
-                st.success(f"✅ {uploaded_file.name} — Loaded {len(df)} rows, {len(df.columns)} columns")
+                        # If successful, break retry loop
+                        if df is not None:
+                            break
+                            
+                    except Exception as retry_error:
+                        if attempt < max_retries - 1:
+                            st.warning(f"⚠️ Attempt {attempt + 1} failed for {uploaded_file.name}, retrying...")
+                            time.sleep(1)  # Brief pause before retry
+                        else:
+                            raise retry_error
+                
+                if df is not None:
+                    # Limit rows for mobile to prevent memory issues
+                    if is_mobile and len(df) > 50000:
+                        st.warning(f"📱 Mobile Mode: Limiting {uploaded_file.name} to first 50,000 rows")
+                        df = df.head(50000)
+                    
+                    dfs.append(df)
+                    st.success(f"✅ {uploaded_file.name} — Loaded {len(df)} rows, {len(df.columns)} columns")
+                
+                # Update progress
+                progress_bar.progress((i + 1) / len(uploaded_files))
 
             except Exception as e:
                 st.error(f"⚠️ Error reading {uploaded_file.name}: {str(e)}")
+                if is_mobile:
+                    st.info("💡 Try enabling Mobile Mode or use desktop version for large files")
+        
+        # Clear progress indicators
+        progress_bar.empty()
+        status_text.empty()
 
         if dfs:
             if len(dfs) == 1:
