@@ -1749,6 +1749,185 @@ def show_ml():
                             if abs(diff_pct) > 5:
                                 direction = "higher" if diff_pct > 0 else "lower"
                                 st.write(f"• **{feature}**: anomalies on average {direction} by {abs(diff_pct):.1f}%")
+    
+    elif ml_type == "📊 Feature Importance":
+        st.markdown("### 📊 Feature Importance Analysis")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Feature selection
+            selected_features = st.multiselect(
+                "Select features for analysis", 
+                numeric_cols, 
+                default=numeric_cols[:min(5, len(numeric_cols))]
+            )
+            
+            # Target variable selection
+            target_col = st.selectbox(
+                "Select target variable",
+                numeric_cols,
+                help="Variable to predict using other features"
+            )
+        
+        with col2:
+            st.markdown("#### ⚙️ Settings")
+            algorithm = st.selectbox(
+                "Algorithm", 
+                ["Random Forest", "Gradient Boosting", "Extra Trees"],
+                help="Machine learning algorithm for feature importance"
+            )
+            n_estimators = st.slider("Number of trees", 10, 200, 100)
+            random_state = st.number_input("Random State", 0, 1000, 42)
+        
+        if len(selected_features) >= 2 and target_col and target_col not in selected_features:
+            if st.button("📊 Calculate Feature Importance"):
+                with st.spinner("Calculating feature importance..."):
+                    # Data preparation
+                    feature_data = df[selected_features + [target_col]].dropna()
+                    
+                    if len(feature_data) < 10:
+                        st.warning("⚠️ Not enough data for reliable feature importance analysis.")
+                        return
+                    
+                    X = feature_data[selected_features]
+                    y = feature_data[target_col]
+                    
+                    # Choose algorithm
+                    if algorithm == "Random Forest":
+                        from sklearn.ensemble import RandomForestRegressor
+                        model = RandomForestRegressor(
+                            n_estimators=n_estimators, 
+                            random_state=random_state,
+                            n_jobs=-1
+                        )
+                    elif algorithm == "Gradient Boosting":
+                        from sklearn.ensemble import GradientBoostingRegressor
+                        model = GradientBoostingRegressor(
+                            n_estimators=n_estimators, 
+                            random_state=random_state
+                        )
+                    else:  # Extra Trees
+                        from sklearn.ensemble import ExtraTreesRegressor
+                        model = ExtraTreesRegressor(
+                            n_estimators=n_estimators, 
+                            random_state=random_state,
+                            n_jobs=-1
+                        )
+                    
+                    # Fit model
+                    model.fit(X, y)
+                    
+                    # Get feature importance
+                    importance_scores = model.feature_importances_
+                    feature_importance_df = pd.DataFrame({
+                        'Feature': selected_features,
+                        'Importance': importance_scores,
+                        'Importance_Pct': (importance_scores / importance_scores.sum()) * 100
+                    }).sort_values('Importance', ascending=False)
+                    
+                    # Model performance
+                    train_score = model.score(X, y)
+                    
+                    # Display results
+                    col1, col2 = st.columns([1, 1])
+                    
+                    with col1:
+                        st.markdown("### 📊 Feature Importance Ranking")
+                        st.dataframe(
+                            feature_importance_df,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        
+                        st.metric("Model R² Score", f"{train_score:.4f}")
+                    
+                    with col2:
+                        # Bar chart
+                        fig_bar = px.bar(
+                            feature_importance_df,
+                            x='Importance_Pct',
+                            y='Feature',
+                            orientation='h',
+                            title=f'Feature Importance ({algorithm})',
+                            labels={'Importance_Pct': 'Importance (%)', 'Feature': 'Features'},
+                            color='Importance_Pct',
+                            color_continuous_scale='viridis'
+                        )
+                        fig_bar.update_layout(
+                            yaxis={'categoryorder': 'total ascending'},
+                            height=400
+                        )
+                        st.plotly_chart(fig_bar, use_container_width=True)
+                    
+                    # Detailed insights
+                    st.markdown("### 🔍 Insights")
+                    
+                    # Top 3 features
+                    top_features = feature_importance_df.head(3)
+                    st.markdown("**🥇 Top 3 Most Important Features:**")
+                    for i, (_, row) in enumerate(top_features.iterrows(), 1):
+                        emoji = ["🥇", "🥈", "🥉"][i-1]
+                        st.write(f"{emoji} **{row['Feature']}**: {row['Importance_Pct']:.1f}% importance")
+                    
+                    # Cumulative importance
+                    feature_importance_df['Cumulative_Pct'] = feature_importance_df['Importance_Pct'].cumsum()
+                    features_80pct = len(feature_importance_df[feature_importance_df['Cumulative_Pct'] <= 80])
+                    features_90pct = len(feature_importance_df[feature_importance_df['Cumulative_Pct'] <= 90])
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Features for 80% importance", f"{features_80pct}/{len(selected_features)}")
+                    with col2:
+                        st.metric("Features for 90% importance", f"{features_90pct}/{len(selected_features)}")
+                    with col3:
+                        least_important = feature_importance_df.iloc[-1]['Feature']
+                        st.metric("Least important feature", least_important)
+                    
+                    # Feature correlation with target
+                    st.markdown("### 🎯 Feature-Target Correlations")
+                    correlations = []
+                    for feature in selected_features:
+                        corr = feature_data[feature].corr(feature_data[target_col])
+                        correlations.append({
+                            'Feature': feature,
+                            'Correlation': corr,
+                            'Abs_Correlation': abs(corr)
+                        })
+                    
+                    corr_df = pd.DataFrame(correlations).sort_values('Abs_Correlation', ascending=False)
+                    
+                    fig_corr = px.bar(
+                        corr_df,
+                        x='Feature',
+                        y='Correlation',
+                        title=f'Feature Correlations with {target_col}',
+                        color='Correlation',
+                        color_continuous_scale='RdBu_r'
+                    )
+                    fig_corr.add_hline(y=0, line_dash="dash", line_color="black")
+                    st.plotly_chart(fig_corr, use_container_width=True)
+                    
+                    # Recommendations
+                    st.markdown("### 💡 Recommendations")
+                    high_importance = feature_importance_df[feature_importance_df['Importance_Pct'] > 15]
+                    low_importance = feature_importance_df[feature_importance_df['Importance_Pct'] < 2]
+                    
+                    if len(high_importance) > 0:
+                        st.success(f"🎯 **Focus on high-impact features**: {', '.join(high_importance['Feature'].tolist())}")
+                    
+                    if len(low_importance) > 0:
+                        st.info(f"🔍 **Consider removing low-impact features**: {', '.join(low_importance['Feature'].tolist())}")
+                    
+                    if train_score < 0.5:
+                        st.warning("⚠️ **Low model performance**: Consider feature engineering or different algorithms")
+                    elif train_score > 0.8:
+                        st.success("✅ **Good model performance**: Features explain the target well")
+        
+        elif target_col in selected_features:
+            st.warning("⚠️ Target variable cannot be in the feature list!")
+        elif len(selected_features) < 2:
+            st.warning("⚠️ Select at least 2 features for analysis!")
 
 def show_ab_testing():
     st.markdown("## 🧪 A/B Testing")
