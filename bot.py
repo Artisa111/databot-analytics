@@ -2205,14 +2205,17 @@ class AdvancedDataAnalyticsBot:
         self.application.run_polling()
 
 if __name__ == "__main__":
-    try:
-        bot = AdvancedDataAnalyticsBot()
-        bot.run()
-    except ValueError as e:
-        print(f"❌ Error: {e}")
-        print("💡 Check your .env file and bot token!")
-        print("📝 Your .env file should contain:")
-        print("TELEGRAM_TOKEN=your_token_here")
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        print("💡 Check your internet connection and bot token!")
+   def run(self):
+    """Run the enhanced bot - Railway compatible"""
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🚀 Starting Advanced DataBot Analytics Pro on port {port}...")
+    print(f"🔑 Token found: {TOKEN[:10]}...")
+    print("✅ Enhanced bot is ready with persistent menu!")
+    print("📱 Bot is running and ready for connections")
+    print("🎯 Features: Multi-format support, advanced ML, comprehensive reports")
+    
+    # For Railway deployment
+    self.application.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES
+    )
