@@ -10,51 +10,7 @@ def is_mobile_browser():
         # Fallback: try to detect mobile from session state or return False
         return False
 
-# Show appropriate warnings with beautiful desktop redirect
-if is_mobile_browser():
-    # Beautiful animated mobile detection banner
-    st.markdown("""
-    <div class="mobile-banner">
-        <h2>📱 Mobile Device Detected</h2>
-        <p><strong>⚠️ File uploads may experience AxiosError on mobile browsers</strong></p>
-        <p><em>🖥️ Desktop version recommended for best experience!</em></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Prominent desktop redirect
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("""
-        <div style="
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            padding: 25px;
-            border-radius: 20px;
-            color: white;
-            text-align: center;
-            margin: 15px 0;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        ">
-            <h3>🖥️ BEST EXPERIENCE ON DESKTOP</h3>
-            <p><strong>🚀 100% Working • No AxiosError • Full Features</strong></p>
-            <hr style="border-color: rgba(255,255,255,0.3);">
-            <p>✅ Large file uploads (200MB)<br>
-            ✅ All analytics features<br>
-            ✅ Faster processing<br>
-            ✅ No network errors</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("🖥️ **SWITCH TO DESKTOP VERSION**", use_container_width=True, type="primary"):
-            st.balloons()
-            st.success("🚀 **Instructions for Desktop Access:**")
-            st.markdown("### 📋 Copy this URL and open on your computer:")
-            st.code("http://localhost:8501", language="text")
-            st.info("💡 **Alternative:** Send this URL to yourself via email or messenger")
-            
-    st.warning("📱 **Mobile Alternative:** Enable 'Mobile Mode' in sidebar or use our Telegram bot: https://t.me/maydatabot123_bot")
-    
-else:
-    st.success("🖥️ **Desktop Version Active** - Full functionality available, no AxiosError!") 
+# Mobile detection function will be called inside main() 
 import streamlit as st
 import pandas as pd 
 import plotly.express as px  
@@ -191,6 +147,52 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
+    # Show appropriate warnings with beautiful desktop redirect
+    if is_mobile_browser():
+        # Beautiful animated mobile detection banner
+        st.markdown("""
+        <div class="mobile-banner">
+            <h2>📱 Mobile Device Detected</h2>
+            <p><strong>⚠️ File uploads may experience AxiosError on mobile browsers</strong></p>
+            <p><em>🖥️ Desktop version recommended for best experience!</em></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Prominent desktop redirect
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("""
+            <div style="
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                padding: 25px;
+                border-radius: 20px;
+                color: white;
+                text-align: center;
+                margin: 15px 0;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            ">
+                <h3>🖥️ BEST EXPERIENCE ON DESKTOP</h3>
+                <p><strong>🚀 100% Working • No AxiosError • Full Features</strong></p>
+                <hr style="border-color: rgba(255,255,255,0.3);">
+                <p>✅ Large file uploads (200MB)<br>
+                ✅ All analytics features<br>
+                ✅ Faster processing<br>
+                ✅ No network errors</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🖥️ **SWITCH TO DESKTOP VERSION**", use_container_width=True, type="primary"):
+                st.balloons()
+                st.success("🚀 **Instructions for Desktop Access:**")
+                st.markdown("### 📋 Copy this URL and open on your computer:")
+                st.code("http://localhost:8501", language="text")
+                st.info("💡 **Alternative:** Send this URL to yourself via email or messenger")
+                
+        st.warning("📱 **Mobile Alternative:** Enable 'Mobile Mode' in sidebar or use our Telegram bot: https://t.me/maydatabot123_bot")
+        
+    else:
+        st.success("🖥️ **Desktop Version Active** - Full functionality available, no AxiosError!")
+    
     st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
     # Add beautiful mobile footer reminder
