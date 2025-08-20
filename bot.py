@@ -892,8 +892,9 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
                 return
             
             # Create figure
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-            fig.suptitle('Data Analysis Dashboard', fontsize=16)
+            fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+            fig.suptitle('Data Analysis Dashboard', fontsize=18, fontweight='bold')
+            plt.subplots_adjust(left=0.1, right=0.95, top=0.93, bottom=0.1, hspace=0.3, wspace=0.3)
             
             # 1. Histogram
             df[numeric_cols[0]].hist(ax=axes[0, 0], bins=30, edgecolor='black')
@@ -910,20 +911,33 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
             # 3. Correlation heatmap
             if len(numeric_cols) > 1:
                 corr_matrix = df[numeric_cols].corr()
-                im = axes[1, 0].imshow(corr_matrix, cmap='coolwarm', aspect='auto')
-                axes[1, 0].set_title('Correlation Matrix')
+                im = axes[1, 0].imshow(corr_matrix, cmap='coolwarm', aspect='auto', vmin=-1, vmax=1)
+                axes[1, 0].set_title('Correlation Matrix', fontsize=12)
                 axes[1, 0].set_xticks(range(len(corr_matrix.columns)))
                 axes[1, 0].set_yticks(range(len(corr_matrix.columns)))
-                axes[1, 0].set_xticklabels(corr_matrix.columns, rotation=45, ha='right')
-                axes[1, 0].set_yticklabels(corr_matrix.columns)
+                
+                # Truncate long column names for better readability
+                short_cols = [col[:10] + '..' if len(col) > 10 else col for col in corr_matrix.columns]
+                
+                axes[1, 0].set_xticklabels(short_cols, rotation=45, ha='right', fontsize=8)
+                axes[1, 0].set_yticklabels(short_cols, fontsize=8)
                 plt.colorbar(im, ax=axes[1, 0])
+                
+                # Add correlation values as text
+                for i in range(len(corr_matrix.columns)):
+                    for j in range(len(corr_matrix.columns)):
+                        text = axes[1, 0].text(j, i, f'{corr_matrix.iloc[i, j]:.2f}',
+                                             ha="center", va="center", color="black", fontsize=6)
             
             # 4. Scatter plot
             if len(numeric_cols) >= 2:
                 axes[1, 1].scatter(df[numeric_cols[0]], df[numeric_cols[1]], alpha=0.5)
-                axes[1, 1].set_title(f'{numeric_cols[0]} vs {numeric_cols[1]}')
-                axes[1, 1].set_xlabel(numeric_cols[0])
-                axes[1, 1].set_ylabel(numeric_cols[1])
+                # Truncate long titles and labels
+                col1_short = numeric_cols[0][:15] + '..' if len(numeric_cols[0]) > 15 else numeric_cols[0]
+                col2_short = numeric_cols[1][:15] + '..' if len(numeric_cols[1]) > 15 else numeric_cols[1]
+                axes[1, 1].set_title(f'{col1_short} vs {col2_short}', fontsize=12)
+                axes[1, 1].set_xlabel(col1_short, fontsize=10)
+                axes[1, 1].set_ylabel(col2_short, fontsize=10)
             
             plt.tight_layout()
             
@@ -1538,8 +1552,9 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
         """Send machine learning visualization charts"""
         try:
             # Create ML visualization dashboard
-            fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-            fig.suptitle('🤖 Machine Learning Analysis Dashboard', fontsize=16, fontweight='bold')
+            fig, axes = plt.subplots(2, 2, figsize=(16, 14))
+            fig.suptitle('🤖 Machine Learning Analysis Dashboard', fontsize=18, fontweight='bold')
+            plt.subplots_adjust(left=0.1, right=0.95, top=0.93, bottom=0.1, hspace=0.3, wspace=0.3)
             
             # 1. Clustering visualization
             kmeans = KMeans(n_clusters=3, random_state=42)
@@ -1547,9 +1562,12 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
             
             if len(numeric_cols) >= 2:
                 scatter = axes[0, 0].scatter(X.iloc[:, 0], X.iloc[:, 1], c=cluster_labels, cmap='viridis', alpha=0.7)
-                axes[0, 0].set_title('K-Means Clustering Results')
-                axes[0, 0].set_xlabel(numeric_cols[0])
-                axes[0, 0].set_ylabel(numeric_cols[1])
+                axes[0, 0].set_title('K-Means Clustering Results', fontsize=12)
+                # Truncate long column names
+                xlabel = numeric_cols[0][:20] + '...' if len(numeric_cols[0]) > 20 else numeric_cols[0]
+                ylabel = numeric_cols[1][:20] + '...' if len(numeric_cols[1]) > 20 else numeric_cols[1]
+                axes[0, 0].set_xlabel(xlabel, fontsize=10)
+                axes[0, 0].set_ylabel(ylabel, fontsize=10)
                 plt.colorbar(scatter, ax=axes[0, 0])
             
             # 2. PCA visualization
@@ -1574,9 +1592,15 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
                     rf.fit(X_temp, y_temp)
                     importances = rf.feature_importances_
                     
-                    axes[1, 0].barh(X_temp.columns, importances, color='lightgreen')
-                    axes[1, 0].set_title('Feature Importance (Random Forest)')
+                    # Truncate long column names for better visibility
+                    shortened_cols = [col[:15] + '...' if len(col) > 15 else col for col in X_temp.columns]
+                    
+                    axes[1, 0].barh(range(len(importances)), importances, color='lightgreen')
+                    axes[1, 0].set_yticks(range(len(importances)))
+                    axes[1, 0].set_yticklabels(shortened_cols, fontsize=8)
+                    axes[1, 0].set_title('Feature Importance (Random Forest)', fontsize=12)
                     axes[1, 0].set_xlabel('Importance')
+                    axes[1, 0].grid(True, alpha=0.3)
             
             # 4. Anomaly detection visualization  
             iso_forest = IsolationForest(contamination=0.1, random_state=42)
@@ -1585,9 +1609,12 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
             if len(numeric_cols) >= 2:
                 colors = ['red' if x == -1 else 'blue' for x in anomaly_labels]
                 axes[1, 1].scatter(X.iloc[:, 0], X.iloc[:, 1], c=colors, alpha=0.6)
-                axes[1, 1].set_title('Anomaly Detection (Red = Anomalies)')
-                axes[1, 1].set_xlabel(numeric_cols[0])
-                axes[1, 1].set_ylabel(numeric_cols[1])
+                axes[1, 1].set_title('Anomaly Detection (Red = Anomalies)', fontsize=12)
+                # Truncate long column names
+                xlabel = numeric_cols[0][:20] + '...' if len(numeric_cols[0]) > 20 else numeric_cols[0]
+                ylabel = numeric_cols[1][:20] + '...' if len(numeric_cols[1]) > 20 else numeric_cols[1]
+                axes[1, 1].set_xlabel(xlabel, fontsize=10)
+                axes[1, 1].set_ylabel(ylabel, fontsize=10)
             
             plt.tight_layout()
             
@@ -1648,12 +1675,23 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
             if len(numeric_cols) > 1:
                 corr_matrix = df[numeric_cols].corr()
                 im = axes[1, 0].imshow(corr_matrix, cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
-                axes[1, 0].set_title('Correlation Matrix Overview')
+                axes[1, 0].set_title('Correlation Matrix Overview', fontsize=12)
                 axes[1, 0].set_xticks(range(len(corr_matrix.columns)))
                 axes[1, 0].set_yticks(range(len(corr_matrix.columns)))
-                axes[1, 0].set_xticklabels(corr_matrix.columns, rotation=45, ha='right')
-                axes[1, 0].set_yticklabels(corr_matrix.columns)
+                
+                # Truncate long column names for better readability
+                short_cols = [col[:8] + '..' if len(col) > 8 else col for col in corr_matrix.columns]
+                
+                axes[1, 0].set_xticklabels(short_cols, rotation=45, ha='right', fontsize=8)
+                axes[1, 0].set_yticklabels(short_cols, fontsize=8)
                 plt.colorbar(im, ax=axes[1, 0], fraction=0.046, pad=0.04)
+                
+                # Add correlation values as text for better readability
+                for i in range(len(corr_matrix.columns)):
+                    for j in range(len(corr_matrix.columns)):
+                        text = axes[1, 0].text(j, i, f'{corr_matrix.iloc[i, j]:.2f}',
+                                             ha="center", va="center", color="white" if abs(corr_matrix.iloc[i, j]) > 0.5 else "black", 
+                                             fontsize=6, weight='bold')
             
             # Chart 4: Summary statistics
             if len(numeric_cols) >= 1:
