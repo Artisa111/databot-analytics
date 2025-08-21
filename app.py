@@ -490,164 +490,170 @@ def show_dashboard():
     
     # Data insights section
     show_insights_and_advice(df)
-
-# Ensure numeric_cols and text_cols are up to date and valid
-if 'df' in locals() or 'df' in globals():
-    if not df.empty:
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-        text_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-    else:
-        numeric_cols = []
-        text_cols = []
-else:
-    numeric_cols = []
-    text_cols = []
-
-# Interactive dashboard sections
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
-
-with tab1:
-    # Quick visualizations
-    valid_numeric_cols = [col for col in numeric_cols if col in df.columns]
-    valid_text_cols = [col for col in text_cols if col in df.columns]
-    if valid_numeric_cols:
-        viz_col1, viz_col2 = st.columns(2)
-
-        with viz_col1:
-            selected_col = st.selectbox("Select metric for quick viz", valid_numeric_cols, key="quick_viz")
-
-            if len(valid_numeric_cols) >= 2:
-                fig = px.line(df.reset_index(), x='index', y=selected_col, title=f"Trend: {selected_col}")
-                st.plotly_chart(fig, use_container_width=True)
+    
+    # Interactive dashboard sections
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
+    
+    with tab1:
+        # Quick visualizations
+        if len(numeric_cols) > 0:
+            viz_col1, viz_col2 = st.columns(2)
+            
+            with viz_col1:
+                # Auto-select best chart for first numeric column
+                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")
+                
+                if len(numeric_cols) >= 2:
+                    fig = px.line(df.reset_index(), x='index', y=selected_col, 
+                                title=f"Trend: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    fig = px.histogram(df, x=selected_col, title=f"Distribution: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with viz_col2:
+                if len(numeric_cols) > 1:
+                    # Correlation heatmap
+                    corr_matrix = df[numeric_cols].corr()
+                    fig = px.imshow(corr_matrix, title="Correlation Matrix", 
+                                  color_continuous_scale="RdBu")
+                    st.plotly_chart(fig, use_container_width=True)
+                elif len(text_cols) > 0:
+                    # Category distribution
+                    cat_col = text_cols[0]
+                    value_counts = df[cat_col].value_counts().head(10)
+                    fig = px.bar(x=value_counts.index, y=value_counts.values,
+                               title=f"Top Categories: {cat_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+    
+    with tab2:
+        # Data explorer
+        st.markdown("#### 🔍 Interactive Data Explorer")
+        
+        # Filter controls
+        filter_col1, filter_col2 = st.columns(2)
+        
+        with filter_col1:
+            if len(text_cols) > 0:
+                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
+                if selected_category != "All":
+                    category_values = st.multiselect(
+                        f"Select {selected_category} values",
+                        df[selected_category].unique(),
+                        default=df[selected_category].unique()[:5]
+                    )
+                    if category_values:
+                        df_filtered = df[df[selected_category].isin(category_values)]
+                    else:
+                        df_filtered = df
+                else:
+                    df_filtered = df
             else:
-                fig = px.histogram(df, x=selected_col, title=f"Distribution: {selected_col}")
-                st.plotly_chart(fig, use_container_width=True)
-
-        with viz_col2:
-            if len(valid_numeric_cols) > 1:
-                corr_matrix = df[valid_numeric_cols].corr()
-                fig = px.imshow(corr_matrix, title="Correlation Matrix", color_continuous_scale="RdBu")
-                st.plotly_chart(fig, use_container_width=True)
-            elif valid_text_cols:
-                cat_col = valid_text_cols[0]
-                value_counts = df[cat_col].value_counts().head(10)
-                fig = px.bar(x=value_counts.index, y=value_counts.values, title=f"Top Categories: {cat_col}")
-                st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No numeric columns found in the dataset.")
-
-with tab2:
-    st.markdown("#### 🔍 Interactive Data Explorer")
-    filter_col1, filter_col2 = st.columns(2)
-    df_filtered = df.copy()
-
-    with filter_col1:
-        valid_text_cols = [col for col in text_cols if col in df_filtered.columns]
-        if valid_text_cols:
-            selected_category = st.selectbox("Filter by category", ["All"] + valid_text_cols)
-            if selected_category != "All" and selected_category in df_filtered.columns:
-                category_values = st.multiselect(
-                    f"Select values for {selected_category}",
-                    df_filtered[selected_category].dropna().unique(),
-                    default=list(df_filtered[selected_category].dropna().unique()[:5])
-                )
-                if category_values:
-                    df_filtered = df_filtered[df_filtered[selected_category].isin(category_values)]
-
-    with filter_col2:
-        valid_numeric_cols = [col for col in numeric_cols if col in df_filtered.columns]
-        if valid_numeric_cols:
-            selected_numeric = st.selectbox("Filter by numeric range", ["None"] + valid_numeric_cols)
-            if selected_numeric != "None" and selected_numeric in df_filtered.columns:
-                min_val, max_val = st.slider(
-                    f"Select range for {selected_numeric}",
-                    float(df_filtered[selected_numeric].min()),
-                    float(df_filtered[selected_numeric].max()),
-                    (float(df_filtered[selected_numeric].min()), float(df_filtered[selected_numeric].max()))
-                )
-                df_filtered = df_filtered[
-                    (df_filtered[selected_numeric] >= min_val) &
-                    (df_filtered[selected_numeric] <= max_val)
-                ]
-
-    st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
-    st.dataframe(df_filtered.head(20))
-
-    stats_numeric_cols = [col for col in numeric_cols if col in df_filtered.columns]
-    if len(df_filtered) > 0 and stats_numeric_cols:
-        st.markdown("#### 📊 Filtered Data Statistics")
-        quick_stats = df_filtered[stats_numeric_cols].describe().round(2)
-        st.dataframe(quick_stats)
-    else:
-        st.info("No numeric columns available for statistics on the filtered data.")
-
-with tab3:
-    st.markdown("#### 🎯 Smart Recommendations")
-    generate_dashboard_recommendations(df)
-
-with tab4:
-    st.markdown("#### 📈 Trend Analysis")
-    valid_numeric_cols = [col for col in numeric_cols if col in df.columns]
-    if valid_numeric_cols:
-        trend_col = st.selectbox("Select column for trend analysis", valid_numeric_cols, key="trend_analysis")
-        df_trend = df.copy()
-        df_trend['index'] = range(len(df_trend))
-        window_size = min(20, len(df_trend) // 10)
-        if window_size > 1:
-            df_trend[f'{trend_col}_MA'] = df_trend[trend_col].rolling(window=window_size).mean()
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df_trend['index'],
-            y=df_trend[trend_col],
-            mode='lines',
-            name='Original',
-            opacity=0.6
-        ))
-
-        if window_size > 1:
+                df_filtered = df
+        
+        with filter_col2:
+            if len(numeric_cols) > 0:
+                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))
+                if selected_numeric != "None":
+                    min_val, max_val = st.slider(
+                        f"Select {selected_numeric} range",
+                        float(df[selected_numeric].min()),
+                        float(df[selected_numeric].max()),
+                        (float(df[selected_numeric].min()), float(df[selected_numeric].max()))
+                    )
+                    df_filtered = df_filtered[
+                        (df_filtered[selected_numeric] >= min_val) & 
+                        (df_filtered[selected_numeric] <= max_val)
+                    ]
+        
+        # Display filtered data
+        st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
+        st.dataframe(df_filtered.head(20))
+        
+        # Quick stats on filtered data
+        if len(df_filtered) > 0 and len(numeric_cols) > 0:
+            st.markdown("#### 📊 Filtered Data Statistics")
+            quick_stats = df_filtered[numeric_cols].describe().round(2)
+            st.dataframe(quick_stats)
+    
+    with tab3:
+        # Smart recommendations
+        st.markdown("#### 🎯 Smart Recommendations")
+        generate_dashboard_recommendations(df)
+    
+    with tab4:
+        # Trend analysis
+        st.markdown("#### 📈 Trend Analysis")
+        if len(numeric_cols) > 0:
+            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")
+            
+            # Create trend visualization
+            df_trend = df.copy()
+            df_trend['index'] = range(len(df_trend))
+            
+            # Calculate moving average
+            window_size = min(20, len(df_trend) // 10)
+            if window_size > 1:
+                df_trend[f'{trend_col}_MA'] = df_trend[trend_col].rolling(window=window_size).mean()
+            
+            fig = go.Figure()
+            
+            # Original data
             fig.add_trace(go.Scatter(
                 x=df_trend['index'],
-                y=df_trend[f'{trend_col}_MA'],
+                y=df_trend[trend_col],
                 mode='lines',
-                name=f'Moving Average ({window_size})',
-                line=dict(width=3)
+                name='Original',
+                opacity=0.6
             ))
-
-        fig.update_layout(
-            title=f"Trend Analysis: {trend_col}",
-            xaxis_title="Data Points",
-            yaxis_title=trend_col
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        trend_analysis = analyze_trend(df[trend_col])
-        st.info(f"📈 Trend Analysis: {trend_analysis}")
-
-        if len(df) > 10:
-            first_quarter = df[trend_col][:len(df)//4].mean()
-            last_quarter = df[trend_col][-len(df)//4:].mean()
-            overall_change = ((last_quarter - first_quarter) / first_quarter) * 100 if first_quarter else 0
-
-            if abs(overall_change) > 5:
-                change_direction = "increased" if overall_change > 0 else "decreased"
-                st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
-
-    else:
-        st.info("No numeric columns available for trend analysis.")
-
-    # Volatility analysis
-    if valid_numeric_cols:
-        st.markdown("#### 📊 Volatility Analysis")
-        volatility_data = {}
-        for col in valid_numeric_cols[:5]:
-            mean_val = df[col].mean()
-            std_val = df[col].std()
-            cv = (std_val / mean_val) * 100 if mean_val != 0 else 0
-            volatility_data[col] = cv
-        volatility_df = pd.DataFrame(list(volatility_data.items()), columns=['Metric', 'Coefficient of Variation (%)'])
-        fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)', title="Data Volatility Analysis")
-        st.plotly_chart(fig, use_container_width=True)
+            
+            # Moving average
+            if window_size > 1:
+                fig.add_trace(go.Scatter(
+                    x=df_trend['index'],
+                    y=df_trend[f'{trend_col}_MA'],
+                    mode='lines',
+                    name=f'Moving Average ({window_size})',
+                    line=dict(width=3)
+                ))
+            
+            fig.update_layout(
+                title=f"Trend Analysis: {trend_col}",
+                xaxis_title="Data Points",
+                yaxis_title=trend_col
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Trend insights
+            trend_analysis = analyze_trend(df[trend_col])
+            st.info(f"📈 Trend Analysis: {trend_analysis}")
+            
+            # Additional trend metrics
+            if len(df) > 10:
+                first_quarter = df[trend_col][:len(df)//4].mean()
+                last_quarter = df[trend_col][-len(df)//4:].mean()
+                overall_change = ((last_quarter - first_quarter) / first_quarter) * 100
+                
+                if abs(overall_change) > 5:
+                    change_direction = "increased" if overall_change > 0 else "decreased"
+                    st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
+        
+        # Volatility analysis
+        if len(numeric_cols) > 0:
+            st.markdown("#### 📊 Volatility Analysis")
+            volatility_data = {}
+            
+            for col in numeric_cols[:5]:  # Analyze top 5 numeric columns
+                cv = (df[col].std() / df[col].mean()) * 100 if df[col].mean() != 0 else 0
+                volatility_data[col] = cv
+            
+            volatility_df = pd.DataFrame(list(volatility_data.items()), 
+                                       columns=['Metric', 'Coefficient of Variation (%)'])
+            
+            fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)',
+                        title="Data Volatility Analysis")
+            st.plotly_chart(fig, use_container_width=True)
 
 def generate_smart_insights(df):
     """Generate smart insights using advanced analysis"""
