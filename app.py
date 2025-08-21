@@ -1,36 +1,22 @@
-# Alternative mobile detection using JavaScript (safer approach)
-def is_mobile_browser():
-    """Detect mobile device using JavaScript to avoid st.context issues"""
-    try:
-        # Check if mobile detection was already done in this session
-        if 'is_mobile_detected' in st.session_state:
-            return st.session_state.is_mobile_detected
-        
-        # Use JavaScript-based detection (safer than st.context.headers)
-        mobile_js = """
-        <script>
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            window.parent.postMessage({type: 'mobile_detected', value: true}, '*');
-        } else {
-            window.parent.postMessage({type: 'mobile_detected', value: false}, '*');
-        }
-        </script>
-        """
-        
-        # Since we can't get immediate JS response, use a simple fallback
-        # For now, assume desktop (can be manually toggled by user)
-        is_mobile = False
-        
-        # Cache the result
-        st.session_state.is_mobile_detected = is_mobile
-        return is_mobile
-        
-    except:
-        return False
-
-# Mobile detection function will be called inside main() 
 import streamlit as st
+
+# RADICAL SOLUTION: Suppress ALL unwanted outputs at the very beginning
+def suppress_unwanted_outputs():
+    """Suppress any unwanted True/False outputs that might appear"""
+    try:
+        # Clear any potential outputs immediately
+        placeholder = st.empty()
+        placeholder.empty()
+    except:
+        pass
+
+# Call suppression immediately
+suppress_unwanted_outputs()
+
+# Simple mobile detection without any potential outputs
+def is_mobile_browser():
+    """Simple mobile detection that never outputs anything"""
+    return False  # We'll use manual toggle instead
 import pandas as pd 
 import plotly.express as px  
 import plotly.graph_objects as go
@@ -166,6 +152,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
+    # AGGRESSIVE OUTPUT SUPPRESSION - Clear everything at start
+    for i in range(5):  # Clear multiple times to be sure
+        st.empty()
+    
     # Clear any potential leftover outputs from URL transitions
     st.empty()
     
@@ -173,16 +163,20 @@ def main():
     if 'mobile_transition' in st.session_state:
         del st.session_state['mobile_transition']
     
+    # Suppress any existing outputs
+    suppress_unwanted_outputs()
+    
     # Manual mobile mode toggle in sidebar for testing
     st.sidebar.markdown("### 📱 Device Settings")
-    manual_mobile_mode = st.sidebar.checkbox("🔧 Simulate Mobile Device", value=False, 
-                                            help="Enable this to see mobile-specific features")
+    manual_mobile_mode = st.sidebar.checkbox("🔧 Enable Mobile Features", value=False, 
+                                            help="Enable this to see mobile-specific features and beautiful redirects")
     
     # Show appropriate warnings with beautiful desktop redirect  
-    # Safe mobile detection - completely isolated
-    mobile_browser_detected = is_mobile_browser() or manual_mobile_mode
+    # Use only manual toggle - no automatic detection
+    mobile_browser_detected = manual_mobile_mode
     
-    # Ensure no residual output
+    # Final cleanup of any residual outputs
+    st.empty()
     st.empty()
     
     if mobile_browser_detected:
@@ -930,7 +924,7 @@ def show_upload():
     st.markdown("## 📂 Data Upload")
     
     # Auto-detect mobile and suggest mobile mode
-    mobile_detected = is_mobile_browser()
+    mobile_detected = False  # Use manual toggle only
     default_mobile_mode = mobile_detected
     
     # Mobile compatibility improvements
