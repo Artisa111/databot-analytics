@@ -1,16 +1,32 @@
-# Mobile detection and improved warnings
+# Mobile detection function - safe version
 def is_mobile_browser():
-    """Detect if user is on mobile device - returns boolean without any output"""
+    """Detect if user is on mobile device safely without any display output"""
     try:
-        # Use the new st.context.headers instead of deprecated _get_websocket_headers
-        headers = st.context.headers
-        if headers:
-            user_agent = headers.get('user-agent', '').lower()
-            return any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
-        else:
+        # Check if we're in a Streamlit session
+        if not hasattr(st, 'context') or st.context is None:
             return False
-    except:
-        # Fallback: return False for desktop
+        
+        # Safely get headers without displaying them
+        headers = getattr(st.context, 'headers', None)
+        if not headers:
+            return False
+        
+        # Extract user agent safely
+        user_agent_raw = headers.get('user-agent', '')
+        if not user_agent_raw:
+            return False
+            
+        user_agent = str(user_agent_raw).lower()
+        
+        # Check for mobile keywords
+        mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
+        is_mobile = any(keyword in user_agent for keyword in mobile_keywords)
+        
+        # Return boolean without any potential display
+        return bool(is_mobile)
+        
+    except Exception:
+        # Safe fallback - assume desktop
         return False
 
 # Mobile detection function will be called inside main() 
@@ -151,8 +167,8 @@ st.markdown("""
 
 def main():
     # Show appropriate warnings with beautiful desktop redirect  
-    # Temporarily disable mobile detection to find True source
-    mobile_browser_detected = False  # is_mobile_browser()
+    # Safe mobile detection - no output
+    mobile_browser_detected = is_mobile_browser()
     
     if mobile_browser_detected:
         # Beautiful animated mobile detection banner
@@ -899,7 +915,7 @@ def show_upload():
     st.markdown("## 📂 Data Upload")
     
     # Auto-detect mobile and suggest mobile mode
-    mobile_detected = False  # is_mobile_browser()
+    mobile_detected = is_mobile_browser()
     default_mobile_mode = mobile_detected
     
     # Mobile compatibility improvements
