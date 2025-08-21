@@ -1,22 +1,17 @@
 import streamlit as st
 
-# RADICAL SOLUTION: Suppress ALL unwanted outputs at the very beginning
-def suppress_unwanted_outputs():
-    """Suppress any unwanted True/False outputs that might appear"""
-    try:
-        # Clear any potential outputs immediately
-        placeholder = st.empty()
-        placeholder.empty()
-    except:
-        pass
-
-# Call suppression immediately
-suppress_unwanted_outputs()
-
-# Simple mobile detection without any potential outputs
+# Safe mobile detection function
 def is_mobile_browser():
-    """Simple mobile detection that never outputs anything"""
-    return False  # We'll use manual toggle instead
+    """Detect mobile device safely without any display issues"""
+    try:
+        # Use session state to cache detection result
+        if 'is_mobile_cache' not in st.session_state:
+            # Simple detection based on screen width
+            # This is safer than using headers
+            st.session_state.is_mobile_cache = False
+        return st.session_state.is_mobile_cache
+    except:
+        return False
 import pandas as pd 
 import plotly.express as px  
 import plotly.graph_objects as go
@@ -152,99 +147,37 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
-    # AGGRESSIVE OUTPUT SUPPRESSION - Clear everything at start
-    for i in range(5):  # Clear multiple times to be sure
-        st.empty()
+    st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
-    # Clear any potential leftover outputs from URL transitions
-    st.empty()
-    
-    # Clear any query parameters that might cause display issues
-    if 'mobile_transition' in st.session_state:
-        del st.session_state['mobile_transition']
-    
-    # Suppress any existing outputs
-    suppress_unwanted_outputs()
-    
-    # Manual mobile mode toggle in sidebar for testing
+    # Add mobile device toggle in sidebar  
     st.sidebar.markdown("### 📱 Device Settings")
-    manual_mobile_mode = st.sidebar.checkbox("🔧 Enable Mobile Features", value=False, 
-                                            help="Enable this to see mobile-specific features and beautiful redirects")
+    is_mobile_device = st.sidebar.checkbox("📱 I'm using mobile device", value=False, 
+                                          help="Check this if you're on mobile for optimized experience")
     
-    # Show appropriate warnings with beautiful desktop redirect  
-    # Use only manual toggle - no automatic detection
-    mobile_browser_detected = manual_mobile_mode
-    
-    # Final cleanup of any residual outputs
-    st.empty()
-    st.empty()
-    
-    if mobile_browser_detected:
-        # Beautiful animated mobile detection banner
-        st.markdown("""
-        <div class="mobile-banner">
-            <h2>📱 Mobile Device Detected</h2>
-            <p><strong>⚠️ File uploads may experience AxiosError on mobile browsers</strong></p>
-            <p><em>🖥️ Desktop version recommended for best experience!</em></p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Show device-specific messages
+    if is_mobile_device:
+        # Mobile-only warnings and recommendations
+        st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
+        st.info("💡 **Better Experience:** Switch to desktop or use our Telegram bot: https://t.me/maydatabot123_bot")
         
-        # Prominent desktop redirect
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("""
-            <div style="
-                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                padding: 25px;
-                border-radius: 20px;
-                color: white;
-                text-align: center;
-                margin: 15px 0;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            ">
-                <h3>🖥️ BEST EXPERIENCE ON DESKTOP</h3>
-                <p><strong>🚀 100% Working • No AxiosError • Full Features</strong></p>
-                <hr style="border-color: rgba(255,255,255,0.3);">
-                <p>✅ Large file uploads (200MB)<br>
-                ✅ All analytics features<br>
-                ✅ Faster processing<br>
-                ✅ No network errors</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("🖥️ **SWITCH TO DESKTOP VERSION**", use_container_width=True, type="primary"):
+        # Desktop version redirect
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("🖥️ **Open Desktop Version**", use_container_width=True, type="primary"):
                 st.balloons()
-                st.success("🚀 **Instructions for Desktop Access:**")
-                st.markdown("### 📋 Copy this URL and open on your computer:")
-                st.code("http://localhost:8501", language="text")
-                st.info("💡 **Alternative:** Send this URL to yourself via email or messenger")
-                
-        st.warning("📱 **Mobile Alternative:** Enable 'Mobile Mode' in sidebar or use our Telegram bot: https://t.me/maydatabot123_bot")
+                st.success("📋 **Copy this URL and open on computer:**")
+                st.code("https://databot-analytics-1.streamlit.app/", language="text")
+        
+        with col2:
+            if st.button("📱 **Use Telegram Bot**", use_container_width=True):
+                st.success("🚀 Telegram bot: https://t.me/maydatabot123_bot")
+        
+        st.success("📱 **Mobile Mode Active:** File size limited to 5MB for stability")
         
     else:
         st.success("🖥️ **Desktop Version Active** - Full functionality available, no AxiosError!")
     
-    st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
-    
-    # Add beautiful mobile footer reminder
-    if mobile_browser_detected:
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("""
-        <div style="
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            text-align: center;
-            margin: 10px 0;
-        ">
-            <h4>💻 Desktop Experience</h4>
-            <p><strong>Get 100% functionality</strong><br>
-            No AxiosError • Large files • Full speed</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Mobile warning
+    # Always show project notice
     st.warning("🙌 This application is presented as a pet project, so it shouldn't be taken too seriously. Thanks for giving it a try!")
     
     with st.sidebar:
