@@ -158,6 +158,7 @@ def main():
     if is_mobile_device:
         # Mobile-only warnings and recommendations
         st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
+        st.info("💡 **Better Experience:** Switch to desktop or use our Telegram bot: https://t.me/maydatabot123_bot")
         
         # Desktop version redirect
         col1, col2 = st.columns([1, 1])
@@ -866,6 +867,7 @@ def show_upload():
         st.success("📱 Mobile Mode active: Optimization for mobile devices")
         st.info("✅ AxiosError protection: Files up to 5MB, retry mechanism, progress bar")
         max_size = 5 * 1024 * 1024  # 5MB for mobile (more aggressive limit)
+        st.markdown("### 📁 File Upload - **5MB Limit for Mobile Stability**")
     else:
         max_size = 200 * 1024 * 1024  # 200MB for desktop
         if mobile_detected:
