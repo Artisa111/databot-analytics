@@ -1,14 +1,16 @@
 # Mobile detection and improved warnings
 def is_mobile_browser():
-    """Detect if user is on mobile device"""
+    """Detect if user is on mobile device - returns boolean without any output"""
     try:
         # Use the new st.context.headers instead of deprecated _get_websocket_headers
         headers = st.context.headers
-        user_agent = headers.get('user-agent', '').lower() if headers else ''
-        result = any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
-        return result
+        if headers:
+            user_agent = headers.get('user-agent', '').lower()
+            return any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+        else:
+            return False
     except:
-        # Fallback: try to detect mobile from session state or return False
+        # Fallback: return False for desktop
         return False
 
 # Mobile detection function will be called inside main() 
@@ -67,7 +69,7 @@ st.set_page_config(
 if 'mobile_config_set' not in st.session_state:
     # Just set a flag for mobile optimizations
     # We'll handle file size limits in the upload function
-    st.session_state.mobile_config_set =True)
+    st.session_state.mobile_config_set = True
 
 # CSS styles with mobile enhancements
 st.markdown("""
@@ -149,7 +151,9 @@ st.markdown("""
 
 def main():
     # Show appropriate warnings with beautiful desktop redirect  
-    mobile_browser_detected = is_mobile_browser()
+    # Temporarily disable mobile detection to find True source
+    mobile_browser_detected = False  # is_mobile_browser()
+    
     if mobile_browser_detected:
         # Beautiful animated mobile detection banner
         st.markdown("""
@@ -895,7 +899,7 @@ def show_upload():
     st.markdown("## 📂 Data Upload")
     
     # Auto-detect mobile and suggest mobile mode
-    mobile_detected = is_mobile_browser()
+    mobile_detected = False  # is_mobile_browser()
     default_mobile_mode = mobile_detected
     
     # Mobile compatibility improvements
