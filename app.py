@@ -632,7 +632,7 @@ with tab4:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No numeric columns available for trend analysis.")
-
+        
 def generate_smart_insights(df):
     """Generate smart insights using advanced analysis"""
     st.markdown("### 🧠 Smart Insights")
