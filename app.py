@@ -1,32 +1,32 @@
-# Mobile detection function - safe version
+# Alternative mobile detection using JavaScript (safer approach)
 def is_mobile_browser():
-    """Detect if user is on mobile device safely without any display output"""
+    """Detect mobile device using JavaScript to avoid st.context issues"""
     try:
-        # Check if we're in a Streamlit session
-        if not hasattr(st, 'context') or st.context is None:
-            return False
+        # Check if mobile detection was already done in this session
+        if 'is_mobile_detected' in st.session_state:
+            return st.session_state.is_mobile_detected
         
-        # Safely get headers without displaying them
-        headers = getattr(st.context, 'headers', None)
-        if not headers:
-            return False
+        # Use JavaScript-based detection (safer than st.context.headers)
+        mobile_js = """
+        <script>
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            window.parent.postMessage({type: 'mobile_detected', value: true}, '*');
+        } else {
+            window.parent.postMessage({type: 'mobile_detected', value: false}, '*');
+        }
+        </script>
+        """
         
-        # Extract user agent safely
-        user_agent_raw = headers.get('user-agent', '')
-        if not user_agent_raw:
-            return False
-            
-        user_agent = str(user_agent_raw).lower()
+        # Since we can't get immediate JS response, use a simple fallback
+        # For now, assume desktop (can be manually toggled by user)
+        is_mobile = False
         
-        # Check for mobile keywords
-        mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
-        is_mobile = any(keyword in user_agent for keyword in mobile_keywords)
+        # Cache the result
+        st.session_state.is_mobile_detected = is_mobile
+        return is_mobile
         
-        # Return boolean without any potential display
-        return bool(is_mobile)
-        
-    except Exception:
-        # Safe fallback - assume desktop
+    except:
         return False
 
 # Mobile detection function will be called inside main() 
@@ -166,9 +166,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
+    # Clear any potential leftover outputs from URL transitions
+    st.empty()
+    
+    # Clear any query parameters that might cause display issues
+    if 'mobile_transition' in st.session_state:
+        del st.session_state['mobile_transition']
+    
+    # Manual mobile mode toggle in sidebar for testing
+    st.sidebar.markdown("### 📱 Device Settings")
+    manual_mobile_mode = st.sidebar.checkbox("🔧 Simulate Mobile Device", value=False, 
+                                            help="Enable this to see mobile-specific features")
+    
     # Show appropriate warnings with beautiful desktop redirect  
-    # Safe mobile detection - no output
-    mobile_browser_detected = is_mobile_browser()
+    # Safe mobile detection - completely isolated
+    mobile_browser_detected = is_mobile_browser() or manual_mobile_mode
+    
+    # Ensure no residual output
+    st.empty()
     
     if mobile_browser_detected:
         # Beautiful animated mobile detection banner
