@@ -158,7 +158,6 @@ def main():
     if is_mobile_device:
         # Mobile-only warnings and recommendations
         st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
-        st.info("💡 **Better Experience:** Switch to desktop or use our Telegram bot: https://t.me/maydatabot123_bot")
         
         # Desktop version redirect
         col1, col2 = st.columns([1, 1])
