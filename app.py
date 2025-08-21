@@ -18,7 +18,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
-import pytz
 import seaborn as sns
 import time
 import matplotlib
@@ -501,7 +500,7 @@ def show_dashboard():
             
             with viz_col1:
                 # Auto-select best chart for first numeric column
-                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")
+                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")  # cSpell:ignore selectbox
                 
                 if len(numeric_cols) >= 2:
                     fig = px.line(df.reset_index(), x='index', y=selected_col, 
@@ -515,7 +514,7 @@ def show_dashboard():
                 if len(numeric_cols) > 1:
                     # Correlation heatmap
                     corr_matrix = df[numeric_cols].corr()
-                    fig = px.imshow(corr_matrix, title="Correlation Matrix", 
+                    fig = px.imshow(corr_matrix, title="Correlation Matrix",  # cSpell:ignore imshow
                                   color_continuous_scale="RdBu")
                     st.plotly_chart(fig, use_container_width=True)
                 elif len(text_cols) > 0:
@@ -535,7 +534,7 @@ def show_dashboard():
         
         with filter_col1:
             if len(text_cols) > 0:
-                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
+                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)  # cSpell:ignore selectbox
                 if selected_category != "All":
                     category_values = st.multiselect(
                         f"Select {selected_category} values",
@@ -543,7 +542,7 @@ def show_dashboard():
                         default=df[selected_category].unique()[:5]
                     )
                     if category_values:
-                        df_filtered = df[df[selected_category].isin(category_values)]
+                        df_filtered = df[df[selected_category].isin(category_values)]  # cSpell:ignore isin
                     else:
                         df_filtered = df
                 else:
@@ -553,7 +552,7 @@ def show_dashboard():
         
         with filter_col2:
             if len(numeric_cols) > 0:
-                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))
+                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))  # cSpell:ignore selectbox
                 if selected_numeric != "None":
                     min_val, max_val = st.slider(
                         f"Select {selected_numeric} range",
@@ -585,7 +584,7 @@ def show_dashboard():
         # Trend analysis
         st.markdown("#### 📈 Trend Analysis")
         if len(numeric_cols) > 0:
-            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")
+            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")  # cSpell:ignore selectbox
             
             # Create trend visualization
             df_trend = df.copy()
@@ -619,8 +618,8 @@ def show_dashboard():
             
             fig.update_layout(
                 title=f"Trend Analysis: {trend_col}",
-                xaxis_title="Data Points",
-                yaxis_title=trend_col
+                xaxis_title="Data Points",  # cSpell:ignore xaxis
+                yaxis_title=trend_col  # cSpell:ignore yaxis
             )
             
             st.plotly_chart(fig, use_container_width=True)
