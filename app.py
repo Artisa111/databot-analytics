@@ -5,7 +5,8 @@ def is_mobile_browser():
         # Use the new st.context.headers instead of deprecated _get_websocket_headers
         headers = st.context.headers
         user_agent = headers.get('user-agent', '').lower() if headers else ''
-        return any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+        result = any(mobile in user_agent for mobile in ['mobile', 'android', 'iphone', 'ipad'])
+        return result
     except:
         # Fallback: try to detect mobile from session state or return False
         return False
@@ -147,8 +148,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
-    # Show appropriate warnings with beautiful desktop redirect
-    if is_mobile_browser():
+    # Show appropriate warnings with beautiful desktop redirect  
+    mobile_browser_detected = is_mobile_browser()
+    if mobile_browser_detected:
         # Beautiful animated mobile detection banner
         st.markdown("""
         <div class="mobile-banner">
@@ -196,7 +198,7 @@ def main():
     st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
     # Add beautiful mobile footer reminder
-    if is_mobile_browser():
+    if mobile_browser_detected:
         st.sidebar.markdown("---")
         st.sidebar.markdown("""
         <div style="
