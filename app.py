@@ -488,18 +488,10 @@ def show_dashboard():
         quality_score = calculate_data_quality(df)
         st.metric("⭐ Quality Score", f"{quality_score:.1f}/10")
     
-   if 'df' in locals() or 'df' in globals():
-    if not df.empty:
-        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-        text_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-    else:
-        numeric_cols = []
-        text_cols = []
-else:
-    numeric_cols = []
-    text_cols = []
-
-# Interactive dashboard sections
+   # Data insights section
+    show_insights_and_advice(df)
+    
+    # Interactive dashboard sections
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
 
 with tab1:
@@ -532,9 +524,9 @@ with tab1:
 with tab2:
     st.markdown("#### 🔍 Interactive Data Explorer")
     filter_col1, filter_col2 = st.columns(2)
-    df_filtered = df.copy() if 'df' in locals() or 'df' in globals() else pd.DataFrame()
+    df_filtered = df.copy()
     with filter_col1:
-        if valid_text_cols and not df_filtered.empty:
+        if valid_text_cols:
             selected_category = st.selectbox("Filter by category", ["All"] + valid_text_cols)
             if selected_category != "All" and selected_category in df_filtered.columns:
                 category_values = st.multiselect(
@@ -544,8 +536,9 @@ with tab2:
                 )
                 if category_values:
                     df_filtered = df_filtered[df_filtered[selected_category].isin(category_values)]
+        # else: keep df_filtered unchanged
     with filter_col2:
-        curr_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns] if not df_filtered.empty else []
+        curr_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns]
         if curr_numeric_cols:
             selected_numeric = st.selectbox("Filter by numeric range", ["None"] + curr_numeric_cols)
             if selected_numeric != "None" and selected_numeric in df_filtered.columns:
@@ -559,23 +552,17 @@ with tab2:
                     (df_filtered[selected_numeric] >= min_val) &
                     (df_filtered[selected_numeric] <= max_val)
                 ]
-    if not df_filtered.empty:
-        st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
-        st.dataframe(df_filtered.head(20))
-        stats_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns]
-        if stats_numeric_cols:
-            st.markdown("#### 📊 Filtered Data Statistics")
-            quick_stats = df_filtered[stats_numeric_cols].describe().round(2)
-            st.dataframe(quick_stats)
-    else:
-        st.info("No data to display.")
+    st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
+    st.dataframe(df_filtered.head(20))
+    stats_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns]
+    if len(df_filtered) > 0 and stats_numeric_cols:
+        st.markdown("#### 📊 Filtered Data Statistics")
+        quick_stats = df_filtered[stats_numeric_cols].describe().round(2)
+        st.dataframe(quick_stats)
 
 with tab3:
     st.markdown("#### 🎯 Smart Recommendations")
-    if 'generate_dashboard_recommendations' in globals():
-        generate_dashboard_recommendations(df)
-    else:
-        st.info("No recommendation engine is defined.")
+    generate_dashboard_recommendations(df)
 
 with tab4:
     st.markdown("#### 📈 Trend Analysis")
@@ -608,9 +595,8 @@ with tab4:
             yaxis_title=trend_col
         )
         st.plotly_chart(fig, use_container_width=True)
-        if 'analyze_trend' in globals():
-            trend_analysis = analyze_trend(df[trend_col])
-            st.info(f"📈 Trend Analysis: {trend_analysis}")
+        trend_analysis = analyze_trend(df[trend_col])
+        st.info(f"📈 Trend Analysis: {trend_analysis}")
         # Additional trend metrics
         if len(df) > 10:
             first_quarter = df[trend_col][:len(df)//4].mean()
@@ -619,7 +605,10 @@ with tab4:
             if abs(overall_change) > 5:
                 change_direction = "increased" if overall_change > 0 else "decreased"
                 st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
-        # Volatility analysis
+    else:
+        st.info("No numeric columns available for trend analysis.")
+    # Volatility analysis
+    if valid_numeric_cols:
         st.markdown("#### 📊 Volatility Analysis")
         volatility_data = {}
         for col in valid_numeric_cols[:5]:
@@ -630,8 +619,6 @@ with tab4:
         volatility_df = pd.DataFrame(list(volatility_data.items()), columns=['Metric', 'Coefficient of Variation (%)'])
         fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)', title="Data Volatility Analysis")
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No numeric columns available for trend analysis.")
         
 def generate_smart_insights(df):
     """Generate smart insights using advanced analysis"""
