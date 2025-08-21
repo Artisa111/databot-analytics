@@ -67,7 +67,7 @@ st.set_page_config(
 if 'mobile_config_set' not in st.session_state:
     # Just set a flag for mobile optimizations
     # We'll handle file size limits in the upload function
-    st.session_state.mobile_config_set = True
+    st.session_state.mobile_config_set =True)
 
 # CSS styles with mobile enhancements
 st.markdown("""
