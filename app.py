@@ -488,138 +488,173 @@ def show_dashboard():
         quality_score = calculate_data_quality(df)
         st.metric("⭐ Quality Score", f"{quality_score:.1f}/10")
     
-   # Data insights section
+    # Data insights section
     show_insights_and_advice(df)
     
     # Interactive dashboard sections
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
-
-with tab1:
-    # Quick visualizations
-    valid_numeric_cols = [col for col in numeric_cols if col in df.columns]
-    valid_text_cols = [col for col in text_cols if col in df.columns]
-    if valid_numeric_cols:
-        viz_col1, viz_col2 = st.columns(2)
-        with viz_col1:
-            selected_col = st.selectbox("Select metric for quick viz", valid_numeric_cols, key="quick_viz")
-            if len(valid_numeric_cols) >= 2:
-                fig = px.line(df.reset_index(), x='index', y=selected_col, title=f"Trend: {selected_col}")
-                st.plotly_chart(fig, use_container_width=True)
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
+    
+    with tab1:
+        # Quick visualizations
+        if len(numeric_cols) > 0:
+            viz_col1, viz_col2 = st.columns(2)
+            
+            with viz_col1:
+                # Auto-select best chart for first numeric column
+                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")
+                
+                if len(numeric_cols) >= 2:
+                    fig = px.line(df.reset_index(), x='index', y=selected_col, 
+                                title=f"Trend: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    fig = px.histogram(df, x=selected_col, title=f"Distribution: {selected_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with viz_col2:
+                if len(numeric_cols) > 1:
+                    # Correlation heatmap
+                    corr_matrix = df[numeric_cols].corr()
+                    fig = px.imshow(corr_matrix, title="Correlation Matrix", 
+                                  color_continuous_scale="RdBu")
+                    st.plotly_chart(fig, use_container_width=True)
+                elif len(text_cols) > 0:
+                    # Category distribution
+                    cat_col = text_cols[0]
+                    value_counts = df[cat_col].value_counts().head(10)
+                    fig = px.bar(x=value_counts.index, y=value_counts.values,
+                               title=f"Top Categories: {cat_col}")
+                    st.plotly_chart(fig, use_container_width=True)
+    
+    with tab2:
+        # Data explorer
+        st.markdown("#### 🔍 Interactive Data Explorer")
+        
+        # Filter controls
+        filter_col1, filter_col2 = st.columns(2)
+        
+        with filter_col1:
+            if len(text_cols) > 0:
+                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
+                if selected_category != "All":
+                    category_values = st.multiselect(
+                        f"Select {selected_category} values",
+                        df[selected_category].unique(),
+                        default=df[selected_category].unique()[:5]
+                    )
+                    if category_values:
+                        df_filtered = df[df[selected_category].isin(category_values)]
+                    else:
+                        df_filtered = df
+                else:
+                    df_filtered = df
             else:
-                fig = px.histogram(df, x=selected_col, title=f"Distribution: {selected_col}")
-                st.plotly_chart(fig, use_container_width=True)
-        with viz_col2:
-            if len(valid_numeric_cols) > 1:
-                corr_matrix = df[valid_numeric_cols].corr()
-                fig = px.imshow(corr_matrix, title="Correlation Matrix", color_continuous_scale="RdBu")
-                st.plotly_chart(fig, use_container_width=True)
-            elif valid_text_cols:
-                cat_col = valid_text_cols[0]
-                value_counts = df[cat_col].value_counts().head(10)
-                fig = px.bar(x=value_counts.index, y=value_counts.values, title=f"Top Categories: {cat_col}")
-                st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No numeric columns found in the dataset.")
-
-with tab2:
-    st.markdown("#### 🔍 Interactive Data Explorer")
-    filter_col1, filter_col2 = st.columns(2)
-    df_filtered = df.copy()
-    with filter_col1:
-        if valid_text_cols:
-            selected_category = st.selectbox("Filter by category", ["All"] + valid_text_cols)
-            if selected_category != "All" and selected_category in df_filtered.columns:
-                category_values = st.multiselect(
-                    f"Select {selected_category} values",
-                    df_filtered[selected_category].dropna().unique(),
-                    default=list(df_filtered[selected_category].dropna().unique()[:5])
-                )
-                if category_values:
-                    df_filtered = df_filtered[df_filtered[selected_category].isin(category_values)]
-        # else: keep df_filtered unchanged
-    with filter_col2:
-        curr_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns]
-        if curr_numeric_cols:
-            selected_numeric = st.selectbox("Filter by numeric range", ["None"] + curr_numeric_cols)
-            if selected_numeric != "None" and selected_numeric in df_filtered.columns:
-                min_val, max_val = st.slider(
-                    f"Select {selected_numeric} range",
-                    float(df_filtered[selected_numeric].min()),
-                    float(df_filtered[selected_numeric].max()),
-                    (float(df_filtered[selected_numeric].min()), float(df_filtered[selected_numeric].max()))
-                )
-                df_filtered = df_filtered[
-                    (df_filtered[selected_numeric] >= min_val) &
-                    (df_filtered[selected_numeric] <= max_val)
-                ]
-    st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
-    st.dataframe(df_filtered.head(20))
-    stats_numeric_cols = [col for col in valid_numeric_cols if col in df_filtered.columns]
-    if len(df_filtered) > 0 and stats_numeric_cols:
-        st.markdown("#### 📊 Filtered Data Statistics")
-        quick_stats = df_filtered[stats_numeric_cols].describe().round(2)
-        st.dataframe(quick_stats)
-
-with tab3:
-    st.markdown("#### 🎯 Smart Recommendations")
-    generate_dashboard_recommendations(df)
-
-with tab4:
-    st.markdown("#### 📈 Trend Analysis")
-    if valid_numeric_cols:
-        trend_col = st.selectbox("Select column for trend analysis", valid_numeric_cols, key="trend_analysis")
-        df_trend = df.copy()
-        df_trend['index'] = range(len(df_trend))
-        window_size = min(20, len(df_trend) // 10) or 1
-        if window_size > 1:
-            df_trend[f'{trend_col}_MA'] = df_trend[trend_col].rolling(window=window_size).mean()
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df_trend['index'],
-            y=df_trend[trend_col],
-            mode='lines',
-            name='Original',
-            opacity=0.6
-        ))
-        if window_size > 1:
+                df_filtered = df
+        
+        with filter_col2:
+            if len(numeric_cols) > 0:
+                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))
+                if selected_numeric != "None":
+                    min_val, max_val = st.slider(
+                        f"Select {selected_numeric} range",
+                        float(df[selected_numeric].min()),
+                        float(df[selected_numeric].max()),
+                        (float(df[selected_numeric].min()), float(df[selected_numeric].max()))
+                    )
+                    df_filtered = df_filtered[
+                        (df_filtered[selected_numeric] >= min_val) & 
+                        (df_filtered[selected_numeric] <= max_val)
+                    ]
+        
+        # Display filtered data
+        st.write(f"**Filtered Data:** {len(df_filtered)} rows (from {len(df)} total)")
+        st.dataframe(df_filtered.head(20))
+        
+        # Quick stats on filtered data
+        if len(df_filtered) > 0 and len(numeric_cols) > 0:
+            st.markdown("#### 📊 Filtered Data Statistics")
+            quick_stats = df_filtered[numeric_cols].describe().round(2)
+            st.dataframe(quick_stats)
+    
+    with tab3:
+        # Smart recommendations
+        st.markdown("#### 🎯 Smart Recommendations")
+        generate_dashboard_recommendations(df)
+    
+    with tab4:
+        # Trend analysis
+        st.markdown("#### 📈 Trend Analysis")
+        if len(numeric_cols) > 0:
+            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")
+            
+            # Create trend visualization
+            df_trend = df.copy()
+            df_trend['index'] = range(len(df_trend))
+            
+            # Calculate moving average
+            window_size = min(20, len(df_trend) // 10)
+            if window_size > 1:
+                df_trend[f'{trend_col}_MA'] = df_trend[trend_col].rolling(window=window_size).mean()
+            
+            fig = go.Figure()
+            
+            # Original data
             fig.add_trace(go.Scatter(
                 x=df_trend['index'],
-                y=df_trend[f'{trend_col}_MA'],
+                y=df_trend[trend_col],
                 mode='lines',
-                name=f'Moving Average ({window_size})',
-                line=dict(width=3)
+                name='Original',
+                opacity=0.6
             ))
-        fig.update_layout(
-            title=f"Trend Analysis: {trend_col}",
-            xaxis_title="Data Points",
-            yaxis_title=trend_col
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        trend_analysis = analyze_trend(df[trend_col])
-        st.info(f"📈 Trend Analysis: {trend_analysis}")
-        # Additional trend metrics
-        if len(df) > 10:
-            first_quarter = df[trend_col][:len(df)//4].mean()
-            last_quarter = df[trend_col][-len(df)//4:].mean()
-            overall_change = ((last_quarter - first_quarter) / first_quarter) * 100 if first_quarter else 0
-            if abs(overall_change) > 5:
-                change_direction = "increased" if overall_change > 0 else "decreased"
-                st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
-    else:
-        st.info("No numeric columns available for trend analysis.")
-    # Volatility analysis
-    if valid_numeric_cols:
-        st.markdown("#### 📊 Volatility Analysis")
-        volatility_data = {}
-        for col in valid_numeric_cols[:5]:
-            mean_val = df[col].mean()
-            std_val = df[col].std()
-            cv = (std_val / mean_val) * 100 if mean_val != 0 else 0
-            volatility_data[col] = cv
-        volatility_df = pd.DataFrame(list(volatility_data.items()), columns=['Metric', 'Coefficient of Variation (%)'])
-        fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)', title="Data Volatility Analysis")
-        st.plotly_chart(fig, use_container_width=True)
+            
+            # Moving average
+            if window_size > 1:
+                fig.add_trace(go.Scatter(
+                    x=df_trend['index'],
+                    y=df_trend[f'{trend_col}_MA'],
+                    mode='lines',
+                    name=f'Moving Average ({window_size})',
+                    line=dict(width=3)
+                ))
+            
+            fig.update_layout(
+                title=f"Trend Analysis: {trend_col}",
+                xaxis_title="Data Points",
+                yaxis_title=trend_col
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Trend insights
+            trend_analysis = analyze_trend(df[trend_col])
+            st.info(f"📈 Trend Analysis: {trend_analysis}")
+            
+            # Additional trend metrics
+            if len(df) > 10:
+                first_quarter = df[trend_col][:len(df)//4].mean()
+                last_quarter = df[trend_col][-len(df)//4:].mean()
+                overall_change = ((last_quarter - first_quarter) / first_quarter) * 100
+                
+                if abs(overall_change) > 5:
+                    change_direction = "increased" if overall_change > 0 else "decreased"
+                    st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
         
+        # Volatility analysis
+        if len(numeric_cols) > 0:
+            st.markdown("#### 📊 Volatility Analysis")
+            volatility_data = {}
+            
+            for col in numeric_cols[:5]:  # Analyze top 5 numeric columns
+                cv = (df[col].std() / df[col].mean()) * 100 if df[col].mean() != 0 else 0
+                volatility_data[col] = cv
+            
+            volatility_df = pd.DataFrame(list(volatility_data.items()), 
+                                       columns=['Metric', 'Coefficient of Variation (%)'])
+            
+            fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)',
+                        title="Data Volatility Analysis")
+            st.plotly_chart(fig, use_container_width=True)
+
 def generate_smart_insights(df):
     """Generate smart insights using advanced analysis"""
     st.markdown("### 🧠 Smart Insights")
@@ -3056,83 +3091,98 @@ def show_reports():
             )
 
 def generate_business_summary(df):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate business summary"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     text_cols = df.select_dtypes(include=['object']).columns
-
+    
     summary = f"""
 # 📊 Executive Summary
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 🎯 Key Metrics
 
 **Data Overview:**
 - 📝 Total records: **{len(df):,}**
-- 📊 Number of columns: **{len(df.columns)}**
-- 🔢 Numeric columns: **{len(numeric_cols)}**
-- 📋 Categorical columns: **{len(text_cols)}**
+- 📊 Number of metrics: **{len(df.columns)}**
+- 🔢 Numeric metrics: **{len(numeric_cols)}**
+- 📋 Categorical metrics: **{len(text_cols)}**
 
 ## 💡 Main Findings
 
 """
+    
+    # Data quality analysis
     missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
     if missing_pct < 5:
-        summary += "✅ High data quality - less than 5% missing values\n\n"
+        summary += "✅ **High data quality** - less than 5% missing values\n\n"
     elif missing_pct < 15:
-        summary += "⚠️ Satisfactory data quality - requires attention to missing values\n\n"
+        summary += "⚠️ **Satisfactory data quality** - requires attention to missing values\n\n"
     else:
-        summary += "❌ Data cleaning required - high percentage of missing values\n\n"
-
+        summary += "❌ **Data cleaning required** - high percentage of missing values\n\n"
+    
+    # Numeric metrics analysis
     if len(numeric_cols) > 0:
         summary += "### 📈 Numeric Metrics\n\n"
-        for col in numeric_cols[:5]:
+        
+        for col in numeric_cols[:5]:  # Top-5 metrics
             col_stats = df[col].describe()
             summary += f"**{col}:**\n"
             summary += f"- Average value: {col_stats['mean']:.2f}\n"
             summary += f"- Median: {col_stats['50%']:.2f}\n"
             summary += f"- Range: {col_stats['min']:.2f} - {col_stats['max']:.2f}\n\n"
-
+    
+    # Correlation analysis
     if len(numeric_cols) >= 2:
         corr_matrix = df[numeric_cols].corr()
         high_corr_pairs = []
+        
         for i in range(len(corr_matrix.columns)):
             for j in range(i+1, len(corr_matrix.columns)):
                 corr_val = corr_matrix.iloc[i, j]
                 if abs(corr_val) > 0.7:
                     high_corr_pairs.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
         if high_corr_pairs:
             summary += "### 🔗 Strong Relationships\n\n"
-            for var1, var2, corr in high_corr_pairs[:3]:
+            for var1, var2, corr in high_corr_pairs[:3]:  # Top-3 correlations
                 summary += f"- **{var1}** ↔ **{var2}**: {corr:.3f}\n"
             summary += "\n"
-
+    
+    # Recommendations
     summary += "## 🎯 Recommendations\n\n"
+    
     recommendations = []
+    
     if missing_pct > 10:
-        recommendations.append("🔧 Perform data cleaning and handle missing values")
+        recommendations.append("🔧 Conduct data cleaning and handle missing values")
+    
     if len(numeric_cols) >= 3:
         recommendations.append("📊 Consider applying machine learning methods")
+    
     if len(text_cols) > 0:
-        recommendations.append("📝 Perform categorical variable analysis")
+        recommendations.append("📝 Conduct categorical variable analysis")
+    
     if len(df) > 10000:
         recommendations.append("⚡ Use optimization methods for big data")
+    
     for i, rec in enumerate(recommendations, 1):
         summary += f"{i}. {rec}\n"
-
-    summary += f"\n---\nReport generated by DataBot Analytics Pro"
+    
+    summary += f"\n---\n*Report generated by DataBot Analytics Pro*"
+    
     return summary
 
 def generate_detailed_analysis(df, include_charts=True, include_stats=True, include_correlations=True):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate detailed analysis"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     text_cols = df.select_dtypes(include=['object']).columns
     datetime_cols = df.select_dtypes(include=['datetime64']).columns
-
+    
     analysis = f"""
 # 📈 Detailed Data Analysis
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 📊 Dataset Overview
 
@@ -3150,25 +3200,33 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
 
 ### Missing Value Analysis
 """
+    
+    # Missing value analysis
     missing_data = df.isnull().sum()
     missing_pct = (missing_data / len(df)) * 100
+    
     if missing_data.sum() > 0:
         analysis += f"**Total missing values**: {missing_data.sum():,}\n\n"
         analysis += "**Columns with missing values**:\n"
+        
         for col in missing_data[missing_data > 0].index:
             analysis += f"- {col}: {missing_data[col]} ({missing_pct[col]:.1f}%)\n"
     else:
         analysis += "✅ No missing values detected\n"
+    
     analysis += "\n"
-
+    
+    # Duplicates
     duplicates = df.duplicated().sum()
     if duplicates > 0:
         analysis += f"**Duplicates**: {duplicates} rows ({duplicates/len(df)*100:.1f}%)\n\n"
     else:
         analysis += "✅ No duplicates detected\n\n"
-
+    
+    # Statistical analysis
     if include_stats and len(numeric_cols) > 0:
         analysis += "## 📊 Statistical Analysis\n\n"
+        
         for col in numeric_cols:
             stats = df[col].describe()
             analysis += f"### {col}\n"
@@ -3178,40 +3236,52 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
             analysis += f"- **Minimum**: {stats['min']:.3f}\n"
             analysis += f"- **Maximum**: {stats['max']:.3f}\n"
             analysis += f"- **Coefficient of variation**: {(stats['std']/stats['mean']*100):.1f}%\n\n"
-
+    
+    # Correlation analysis
     if include_correlations and len(numeric_cols) >= 2:
         analysis += "## 🔗 Correlation Analysis\n\n"
+        
         corr_matrix = df[numeric_cols].corr()
+        
+        # Find strong correlations
         strong_correlations = []
         for i in range(len(corr_matrix.columns)):
             for j in range(i+1, len(corr_matrix.columns)):
                 corr_val = corr_matrix.iloc[i, j]
                 if abs(corr_val) > 0.5:
                     strong_correlations.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
         if strong_correlations:
             analysis += "### Significant correlations (|r| > 0.5):\n"
             strong_correlations.sort(key=lambda x: abs(x[2]), reverse=True)
+            
             for var1, var2, corr in strong_correlations:
                 strength = "very strong" if abs(corr) > 0.8 else "strong" if abs(corr) > 0.6 else "moderate"
                 direction = "positive" if corr > 0 else "negative"
                 analysis += f"- **{var1}** ↔ **{var2}**: {corr:.3f} ({strength} {direction})\n"
         else:
             analysis += "No strong correlations detected.\n"
+        
         analysis += "\n"
-
+    
+    # Distribution analysis
     if len(numeric_cols) > 0:
         analysis += "## 📈 Distribution Analysis\n\n"
-        for col in numeric_cols[:3]:
+        
+        for col in numeric_cols[:3]:  # Analyze first 3 columns
             skewness = df[col].skew()
             kurtosis = df[col].kurtosis()
+            
             analysis += f"### {col}\n"
             analysis += f"- **Skewness**: {skewness:.3f} "
+            
             if abs(skewness) < 0.5:
                 analysis += "(symmetric distribution)\n"
             elif skewness > 0:
                 analysis += "(right-skewed)\n"
             else:
                 analysis += "(left-skewed)\n"
+            
             analysis += f"- **Kurtosis**: {kurtosis:.3f} "
             if kurtosis > 3:
                 analysis += "(peaked distribution)\n"
@@ -3219,10 +3289,15 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
                 analysis += "(flat distribution)\n"
             else:
                 analysis += "(close to normal)\n"
+            
             analysis += "\n"
-
+    
+    # Conclusions and recommendations
     analysis += "## 💡 Conclusions and Recommendations\n\n"
+    
     conclusions = []
+    
+    # Data quality
     missing_pct_total = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
     if missing_pct_total < 5:
         conclusions.append("✅ High data quality - ready for analysis")
@@ -3230,12 +3305,16 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
         conclusions.append("⚠️ Data requires preprocessing")
     else:
         conclusions.append("❌ Serious data cleaning needed")
+    
+    # Data size
     if len(df) > 100000:
         conclusions.append("📊 Large dataset - suitable for machine learning")
     elif len(df) > 1000:
         conclusions.append("📈 Medium dataset - sufficient for statistical analysis")
     else:
         conclusions.append("📉 Small dataset - limited analysis capabilities")
+    
+    # Correlations
     if len(numeric_cols) >= 2:
         corr_matrix = df[numeric_cols].corr()
         max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
@@ -3243,66 +3322,81 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
             conclusions.append("🔗 Strong correlations detected - possible multicollinearity")
         elif max_corr > 0.5:
             conclusions.append("📊 Moderate correlations found between variables")
+    
+    # Outliers
     outlier_cols = []
     for col in numeric_cols:
         Q1 = df[col].quantile(0.25)
         Q3 = df[col].quantile(0.75)
         IQR = Q3 - Q1
         outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
-        if len(outliers) > len(df) * 0.05:
+        if len(outliers) > len(df) * 0.05:  # More than 5% outliers
             outlier_cols.append(col)
+    
     if outlier_cols:
         conclusions.append(f"⚠️ Outliers detected in columns: {', '.join(outlier_cols)}")
+    
     for i, conclusion in enumerate(conclusions, 1):
         analysis += f"{i}. {conclusion}\n"
+    
     analysis += "\n### Next Steps:\n"
+    
     next_steps = []
+    
     if missing_pct_total > 5:
         next_steps.append("🔧 Handle missing values")
+    
     if len(numeric_cols) >= 3:
         next_steps.append("🤖 Apply machine learning methods")
+    
     if outlier_cols:
         next_steps.append("🎯 Analyze and handle outliers")
+    
     if len(text_cols) > 0:
         next_steps.append("📝 Analyze categorical variables")
+    
     if len(numeric_cols) >= 2:
         next_steps.append("📊 Build predictive models")
+    
     for i, step in enumerate(next_steps, 1):
         analysis += f"{i}. {step}\n"
-    analysis += f"\n---\nDetailed analysis performed on {now_israel.strftime('%Y-%m-%d at %H:%M')} (Israel time)"
+    
+    analysis += f"\n---\n*Detailed analysis performed on {datetime.now().strftime('%d.%m.%Y at %H:%M')}*"
+    
     return analysis
 
 def generate_executive_summary(df):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate brief overview"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
-
+    
     summary = f"""
 # 📊 Data Brief Overview
 
 ## Key Metrics
 - **Records**: {len(df):,}
 - **Columns**: {len(df.columns)}
-- **Numeric columns**: {len(numeric_cols)}
+- **Numeric metrics**: {len(numeric_cols)}
 - **Data quality**: {calculate_data_quality(df):.1f}/10
 
 ## Key Statistics
 """
+    
     if len(numeric_cols) > 0:
         for col in numeric_cols[:3]:
             mean_val = df[col].mean()
             summary += f"- **{col}**: average {mean_val:.2f}\n"
-    summary += f"\n*Overview created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*"
+    
+    summary += f"\n*Overview created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*"
+    
     return summary
 
 def generate_custom_report(df, include_charts=True, include_stats=True, include_correlations=True, include_outliers=False):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-
+    """Generate custom report"""
+    
     report = f"""
 # 🎯 Custom Report
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 📋 Report Configuration
 - Charts: {'✅' if include_charts else '❌'}
@@ -3314,22 +3408,28 @@ def generate_custom_report(df, include_charts=True, include_stats=True, include_
 - Total records: {len(df):,}
 - Total columns: {len(df.columns)}
 """
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
     if include_stats and len(numeric_cols) > 0:
         report += f"\n## 📈 Statistical Overview\n"
         for col in numeric_cols[:5]:
             stats = df[col].describe()
             report += f"**{col}**: min={stats['min']:.2f}, max={stats['max']:.2f}, mean={stats['mean']:.2f}\n"
+    
     if include_correlations and len(numeric_cols) >= 2:
         report += f"\n## 🔗 Correlation Analysis\n"
         corr_matrix = df[numeric_cols].corr()
         max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
         report += f"Maximum correlation: {max_corr:.3f}\n"
+    
     if include_outliers:
         report += f"\n## 🎯 Outlier Analysis\n"
         for col in numeric_cols[:3]:
             outliers_info = detect_outliers_advanced(df[col])
             iqr_outliers = outliers_info['IQR']['count']
             report += f"**{col}**: {iqr_outliers} outliers by IQR method\n"
+    
     return report
 
 # Helper functions for creating demo data
