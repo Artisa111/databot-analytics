@@ -18,6 +18,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
+import pytz
 import seaborn as sns
 import time
 import matplotlib
@@ -487,98 +488,20 @@ def show_dashboard():
         quality_score = calculate_data_quality(df)
         st.metric("⭐ Quality Score", f"{quality_score:.1f}/10")
     
-    # Data insights section with button activation
-    if st.button("🔍 Generate Data Insights", use_container_width=True):
-        show_insights_and_advice(df)
-    
-    # Always show basic calculations
-    st.markdown("### 📊 Basic Data Calculations")
-    calc_col1, calc_col2, calc_col3 = st.columns(3)
-    
-    with calc_col1:
-        st.metric("📝 Data Shape", f"{df.shape[0]} × {df.shape[1]}")
-        if len(numeric_cols) > 0:
-            st.metric("📈 Numeric Columns", len(numeric_cols))
-        if len(text_cols) > 0:
-            st.metric("📝 Text Columns", len(text_cols))
-    
-    with calc_col2:
-        if len(numeric_cols) > 0:
-            avg_mean = df[numeric_cols].mean().mean()
-            st.metric("📊 Average Mean", f"{avg_mean:.2f}")
-            total_nulls = df.isnull().sum().sum()
-            st.metric("❌ Total Missing", total_nulls)
-        else:
-            st.metric("📊 Data Type", "Non-numeric")
-    
-    with calc_col3:
-        if len(df) > 0:
-            duplicates = df.duplicated().sum()
-            st.metric("🔄 Duplicates", duplicates)
-            memory_usage = df.memory_usage(deep=True).sum() / 1024**2
-            st.metric("💾 Memory (MB)", f"{memory_usage:.2f}")
-    
-    # English insights button
-    if st.button("💡 Generate English Insights", use_container_width=True):
-        st.markdown("#### 🎯 Data Analysis Insights (English)")
-        insights = []
-        
-        # Data size insight
-        if len(df) > 10000:
-            insights.append("📊 Large dataset detected - excellent for statistical analysis")
-        elif len(df) < 100:
-            insights.append("⚠️ Small dataset - results may have limited statistical significance")
-        else:
-            insights.append("📊 Medium-sized dataset - good for most analyses")
-        
-        # Data quality insight
-        missing_rate = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
-        if missing_rate < 5:
-            insights.append("✅ Excellent data quality - minimal missing values")
-        elif missing_rate < 20:
-            insights.append("🟡 Good data quality - some cleaning recommended")
-        else:
-            insights.append("🔴 Poor data quality - significant cleaning required")
-        
-        # Column distribution insight
-        if len(numeric_cols) > len(text_cols):
-            insights.append("🔢 Numeric-heavy dataset - perfect for mathematical analysis")
-        elif len(text_cols) > len(numeric_cols):
-            insights.append("📝 Text-heavy dataset - consider NLP or categorical analysis")
-        else:
-            insights.append("⚖️ Balanced dataset with mixed data types")
-        
-        # Correlation insight
-        if len(numeric_cols) >= 2:
-            corr_matrix = df[numeric_cols].corr()
-            max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, k=1)].max()
-            if max_corr > 0.8:
-                insights.append("🔗 Strong correlations detected - multicollinearity present")
-            elif max_corr > 0.5:
-                insights.append("📈 Moderate correlations found - interesting relationships exist")
-            else:
-                insights.append("📊 Low correlations - variables are mostly independent")
-        
-        for insight in insights:
-            st.success(insight)
+    # Data insights section
+    show_insights_and_advice(df)
     
     # Interactive dashboard sections
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Quick Viz", "🔍 Data Explorer", "🎯 Recommendations", "📈 Trends"])
     
     with tab1:
-        # Quick visualizations - works with any data
-        st.markdown("#### 📊 Quick Data Visualization")
-        
-        # Always show data preview
-        if st.button("👀 Show Data Preview", use_container_width=True):
-            st.dataframe(df.head(10))
-        
+        # Quick visualizations
         if len(numeric_cols) > 0:
             viz_col1, viz_col2 = st.columns(2)
             
             with viz_col1:
                 # Auto-select best chart for first numeric column
-                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")  # cSpell:ignore selectbox
+                selected_col = st.selectbox("Select metric for quick viz", numeric_cols, key="quick_viz")
                 
                 if len(numeric_cols) >= 2:
                     fig = px.line(df.reset_index(), x='index', y=selected_col, 
@@ -592,7 +515,7 @@ def show_dashboard():
                 if len(numeric_cols) > 1:
                     # Correlation heatmap
                     corr_matrix = df[numeric_cols].corr()
-                    fig = px.imshow(corr_matrix, title="Correlation Matrix",  # cSpell:ignore imshow
+                    fig = px.imshow(corr_matrix, title="Correlation Matrix", 
                                   color_continuous_scale="RdBu")
                     st.plotly_chart(fig, use_container_width=True)
                 elif len(text_cols) > 0:
@@ -612,7 +535,7 @@ def show_dashboard():
         
         with filter_col1:
             if len(text_cols) > 0:
-                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)  # cSpell:ignore selectbox
+                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
                 if selected_category != "All":
                     category_values = st.multiselect(
                         f"Select {selected_category} values",
@@ -620,7 +543,7 @@ def show_dashboard():
                         default=df[selected_category].unique()[:5]
                     )
                     if category_values:
-                        df_filtered = df[df[selected_category].isin(category_values)]  # cSpell:ignore isin
+                        df_filtered = df[df[selected_category].isin(category_values)]
                     else:
                         df_filtered = df
                 else:
@@ -628,27 +551,9 @@ def show_dashboard():
             else:
                 df_filtered = df
         
-        # Always show some basic exploration
-        if st.button("🔍 Quick Data Exploration", key="explore_btn"):
-            st.markdown("#### 📋 Data Summary")
-            st.write(f"**Dataset Overview:**")
-            st.write(f"- Total rows: {len(df):,}")
-            st.write(f"- Total columns: {len(df.columns)}")
-            st.write(f"- Numeric columns: {len(numeric_cols)}")
-            st.write(f"- Text columns: {len(text_cols)}")
-            
-            if len(df.columns) > 0:
-                st.write(f"**Column Names:** {', '.join(df.columns[:10].tolist())}{'...' if len(df.columns) > 10 else ''}")
-            
-            # Show data types
-            st.markdown("#### 📊 Data Types Distribution")
-            dtype_counts = df.dtypes.value_counts()
-            for dtype, count in dtype_counts.items():
-                st.write(f"- {dtype}: {count} columns")
-        
         with filter_col2:
             if len(numeric_cols) > 0:
-                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))  # cSpell:ignore selectbox
+                selected_numeric = st.selectbox("Filter by numeric range", ["None"] + list(numeric_cols))
                 if selected_numeric != "None":
                     min_val, max_val = st.slider(
                         f"Select {selected_numeric} range",
@@ -680,7 +585,7 @@ def show_dashboard():
         # Trend analysis
         st.markdown("#### 📈 Trend Analysis")
         if len(numeric_cols) > 0:
-            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")  # cSpell:ignore selectbox
+            trend_col = st.selectbox("Select column for trend analysis", numeric_cols, key="trend_analysis")
             
             # Create trend visualization
             df_trend = df.copy()
@@ -714,8 +619,8 @@ def show_dashboard():
             
             fig.update_layout(
                 title=f"Trend Analysis: {trend_col}",
-                xaxis_title="Data Points",  # cSpell:ignore xaxis
-                yaxis_title=trend_col  # cSpell:ignore yaxis
+                xaxis_title="Data Points",
+                yaxis_title=trend_col
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -734,40 +639,21 @@ def show_dashboard():
                     change_direction = "increased" if overall_change > 0 else "decreased"
                     st.write(f"📊 Overall trend: {trend_col} has {change_direction} by {abs(overall_change):.1f}%")
         
-        # Enhanced volatility analysis with button activation
+        # Volatility analysis
         if len(numeric_cols) > 0:
-            if st.button("📊 Analyze Data Volatility", key="volatility_btn"):
-                st.markdown("#### 📊 Volatility Analysis")
-                volatility_data = {}
-                
-                for col in numeric_cols[:5]:  # Analyze top 5 numeric columns
-                    try:
-                        mean_val = df[col].mean()
-                        std_val = df[col].std()
-                        cv = (std_val / mean_val) * 100 if mean_val != 0 else 0
-                        volatility_data[col] = cv
-                        
-                        # Show individual column statistics
-                        st.write(f"**{col}**: Mean={mean_val:.2f}, Std={std_val:.2f}, CV={cv:.1f}%")
-                    except Exception as e:
-                        st.warning(f"Could not calculate volatility for {col}: {str(e)}")
-                
-                if volatility_data:
-                    volatility_df = pd.DataFrame(list(volatility_data.items()), 
-                                               columns=['Metric', 'Coefficient of Variation (%)'])
-                    
-                    fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)',
-                                title="Data Volatility Analysis")
-                    st.plotly_chart(fig, use_container_width=True)
-        else:
-            # For non-numeric data, show alternative analysis
-            if st.button("🔤 Analyze Text Data", key="text_analysis_btn"):
-                st.markdown("#### 🔤 Text Data Analysis")
-                for col in text_cols[:3]:
-                    unique_vals = df[col].nunique()
-                    most_common = df[col].value_counts().head(3)
-                    st.write(f"**{col}**: {unique_vals} unique values")
-                    st.write(f"Most common: {', '.join([f'{val} ({count})' for val, count in most_common.items()])}")
+            st.markdown("#### 📊 Volatility Analysis")
+            volatility_data = {}
+            
+            for col in numeric_cols[:5]:  # Analyze top 5 numeric columns
+                cv = (df[col].std() / df[col].mean()) * 100 if df[col].mean() != 0 else 0
+                volatility_data[col] = cv
+            
+            volatility_df = pd.DataFrame(list(volatility_data.items()), 
+                                       columns=['Metric', 'Coefficient of Variation (%)'])
+            
+            fig = px.bar(volatility_df, x='Metric', y='Coefficient of Variation (%)',
+                        title="Data Volatility Analysis")
+            st.plotly_chart(fig, use_container_width=True)
 
 def generate_smart_insights(df):
     """Generate smart insights using advanced analysis"""
