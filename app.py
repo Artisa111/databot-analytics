@@ -159,7 +159,6 @@ def main():
     if is_mobile_device:
         # Mobile-only warnings and recommendations
         st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
-        st.info("💡 **Better Experience:** Switch to desktop or use our Telegram bot: https://t.me/maydatabot123_bot")
         
         # Desktop version redirect
         col1, col2 = st.columns([1, 1])
@@ -934,7 +933,7 @@ def show_upload():
                 st.success("🚀 Opening desktop version...")
                 # Get current URL and display it
                 st.markdown("📋 **Copy this link and open on computer:**")
-                st.code("http://localhost:8501", language="text")
+                st.code("https://databot-analytics-1.streamlit.app/", language="text")
                 st.info("💡 Or share this app URL with yourself via email/messenger")
         
         # Emergency reset for persistent AxiosError
