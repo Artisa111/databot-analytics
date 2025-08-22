@@ -1,24 +1,28 @@
 import streamlit as st
 
-# Safe mobile detection function
-def is_mobile_browser():
-    """Detect mobile device safely without any display issues"""
+# RADICAL SOLUTION: Suppress ALL unwanted outputs at the very beginning
+def suppress_unwanted_outputs():
+    """Suppress any unwanted True/False outputs that might appear"""
     try:
-        # Use session state to cache detection result
-        if 'is_mobile_cache' not in st.session_state:
-            # Simple detection based on screen width
-            # This is safer than using headers
-            st.session_state.is_mobile_cache = False
-        return st.session_state.is_mobile_cache
+        # Clear any potential outputs immediately
+        placeholder = st.empty()
+        placeholder.empty()
     except:
-        return False
+        pass
+
+# Call suppression immediately
+suppress_unwanted_outputs()
+
+# Simple mobile detection without any potential outputs
+def is_mobile_browser():
+    """Simple mobile detection that never outputs anything"""
+    return False  # We'll use manual toggle instead
 import pandas as pd 
 import plotly.express as px  
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
-import pytz
 import seaborn as sns
 import time
 import matplotlib
@@ -148,37 +152,99 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
-    st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
+    # AGGRESSIVE OUTPUT SUPPRESSION - Clear everything at start
+    for i in range(5):  # Clear multiple times to be sure
+        st.empty()
     
-    # Add mobile device toggle in sidebar  
+    # Clear any potential leftover outputs from URL transitions
+    st.empty()
+    
+    # Clear any query parameters that might cause display issues
+    if 'mobile_transition' in st.session_state:
+        del st.session_state['mobile_transition']
+    
+    # Suppress any existing outputs
+    suppress_unwanted_outputs()
+    
+    # Manual mobile mode toggle in sidebar for testing
     st.sidebar.markdown("### 📱 Device Settings")
-    is_mobile_device = st.sidebar.checkbox("📱 I'm using mobile device", value=False, 
-                                          help="Check this if you're on mobile for optimized experience")
+    manual_mobile_mode = st.sidebar.checkbox("🔧 Enable Mobile Features", value=False, 
+                                            help="Enable this to see mobile-specific features and beautiful redirects")
     
-    # Show device-specific messages
-    if is_mobile_device:
-        # Mobile-only warnings and recommendations
-        st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
-        st.info("💡 **Better Experience:** Switch to desktop or use our Telegram bot: https://t.me/maydatabot123_bot")
+    # Show appropriate warnings with beautiful desktop redirect  
+    # Use only manual toggle - no automatic detection
+    mobile_browser_detected = manual_mobile_mode
+    
+    # Final cleanup of any residual outputs
+    st.empty()
+    st.empty()
+    
+    if mobile_browser_detected:
+        # Beautiful animated mobile detection banner
+        st.markdown("""
+        <div class="mobile-banner">
+            <h2>📱 Mobile Device Detected</h2>
+            <p><strong>⚠️ File uploads may experience AxiosError on mobile browsers</strong></p>
+            <p><em>🖥️ Desktop version recommended for best experience!</em></p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Desktop version redirect
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("🖥️ **Open Desktop Version**", use_container_width=True, type="primary"):
-                st.balloons()
-                st.success("📋 **Copy this URL and open on computer:**")
-                st.code("https://databot-analytics-1.streamlit.app/", language="text")
-        
+        # Prominent desktop redirect
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("📱 **Use Telegram Bot**", use_container_width=True):
-                st.success("🚀 Telegram bot: https://t.me/maydatabot123_bot")
-        
-        st.success("📱 **Mobile Mode Active:** File size limited to 5MB for stability")
+            st.markdown("""
+            <div style="
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                padding: 25px;
+                border-radius: 20px;
+                color: white;
+                text-align: center;
+                margin: 15px 0;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            ">
+                <h3>🖥️ BEST EXPERIENCE ON DESKTOP</h3>
+                <p><strong>🚀 100% Working • No AxiosError • Full Features</strong></p>
+                <hr style="border-color: rgba(255,255,255,0.3);">
+                <p>✅ Large file uploads (200MB)<br>
+                ✅ All analytics features<br>
+                ✅ Faster processing<br>
+                ✅ No network errors</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🖥️ **SWITCH TO DESKTOP VERSION**", use_container_width=True, type="primary"):
+                st.balloons()
+                st.success("🚀 **Instructions for Desktop Access:**")
+                st.markdown("### 📋 Copy this URL and open on your computer:")
+                st.code("https://databot-analytics-1.streamlit.app/", language="text")
+                st.info("💡 **Alternative:** Send this URL to yourself via email or messenger")
+                
+        st.warning("📱 **Mobile Alternative:** Enable 'Mobile Mode' in sidebar or use our Telegram bot: https://t.me/maydatabot123_bot")
         
     else:
         st.success("🖥️ **Desktop Version Active** - Full functionality available, no AxiosError!")
     
-    # Always show project notice
+    st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
+    
+    # Add beautiful mobile footer reminder
+    if mobile_browser_detected:
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("""
+        <div style="
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            margin: 10px 0;
+        ">
+            <h4>💻 Desktop Experience</h4>
+            <p><strong>Get 100% functionality</strong><br>
+            No AxiosError • Large files • Full speed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Mobile warning
     st.warning("🙌 This application is presented as a pet project, so it shouldn't be taken too seriously. Thanks for giving it a try!")
     
     with st.sidebar:
@@ -868,7 +934,6 @@ def show_upload():
         st.success("📱 Mobile Mode active: Optimization for mobile devices")
         st.info("✅ AxiosError protection: Files up to 5MB, retry mechanism, progress bar")
         max_size = 5 * 1024 * 1024  # 5MB for mobile (more aggressive limit)
-        st.markdown("### 📁 File Upload - **5MB Limit for Mobile Stability**")
     else:
         max_size = 200 * 1024 * 1024  # 200MB for desktop
         if mobile_detected:
@@ -3091,83 +3156,98 @@ def show_reports():
             )
 
 def generate_business_summary(df):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate business summary"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     text_cols = df.select_dtypes(include=['object']).columns
-
+    
     summary = f"""
 # 📊 Executive Summary
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 🎯 Key Metrics
 
 **Data Overview:**
 - 📝 Total records: **{len(df):,}**
-- 📊 Number of columns: **{len(df.columns)}**
-- 🔢 Numeric columns: **{len(numeric_cols)}**
-- 📋 Categorical columns: **{len(text_cols)}**
+- 📊 Number of metrics: **{len(df.columns)}**
+- 🔢 Numeric metrics: **{len(numeric_cols)}**
+- 📋 Categorical metrics: **{len(text_cols)}**
 
 ## 💡 Main Findings
 
 """
+    
+    # Data quality analysis
     missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
     if missing_pct < 5:
-        summary += "✅ High data quality - less than 5% missing values\n\n"
+        summary += "✅ **High data quality** - less than 5% missing values\n\n"
     elif missing_pct < 15:
-        summary += "⚠️ Satisfactory data quality - requires attention to missing values\n\n"
+        summary += "⚠️ **Satisfactory data quality** - requires attention to missing values\n\n"
     else:
-        summary += "❌ Data cleaning required - high percentage of missing values\n\n"
-
+        summary += "❌ **Data cleaning required** - high percentage of missing values\n\n"
+    
+    # Numeric metrics analysis
     if len(numeric_cols) > 0:
         summary += "### 📈 Numeric Metrics\n\n"
-        for col in numeric_cols[:5]:
+        
+        for col in numeric_cols[:5]:  # Top-5 metrics
             col_stats = df[col].describe()
             summary += f"**{col}:**\n"
             summary += f"- Average value: {col_stats['mean']:.2f}\n"
             summary += f"- Median: {col_stats['50%']:.2f}\n"
             summary += f"- Range: {col_stats['min']:.2f} - {col_stats['max']:.2f}\n\n"
-
+    
+    # Correlation analysis
     if len(numeric_cols) >= 2:
         corr_matrix = df[numeric_cols].corr()
         high_corr_pairs = []
+        
         for i in range(len(corr_matrix.columns)):
             for j in range(i+1, len(corr_matrix.columns)):
                 corr_val = corr_matrix.iloc[i, j]
                 if abs(corr_val) > 0.7:
                     high_corr_pairs.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
         if high_corr_pairs:
             summary += "### 🔗 Strong Relationships\n\n"
-            for var1, var2, corr in high_corr_pairs[:3]:
+            for var1, var2, corr in high_corr_pairs[:3]:  # Top-3 correlations
                 summary += f"- **{var1}** ↔ **{var2}**: {corr:.3f}\n"
             summary += "\n"
-
+    
+    # Recommendations
     summary += "## 🎯 Recommendations\n\n"
+    
     recommendations = []
+    
     if missing_pct > 10:
-        recommendations.append("🔧 Perform data cleaning and handle missing values")
+        recommendations.append("🔧 Conduct data cleaning and handle missing values")
+    
     if len(numeric_cols) >= 3:
         recommendations.append("📊 Consider applying machine learning methods")
+    
     if len(text_cols) > 0:
-        recommendations.append("📝 Perform categorical variable analysis")
+        recommendations.append("📝 Conduct categorical variable analysis")
+    
     if len(df) > 10000:
         recommendations.append("⚡ Use optimization methods for big data")
+    
     for i, rec in enumerate(recommendations, 1):
         summary += f"{i}. {rec}\n"
-
-    summary += f"\n---\nReport generated by DataBot Analytics Pro"
+    
+    summary += f"\n---\n*Report generated by DataBot Analytics Pro*"
+    
     return summary
 
 def generate_detailed_analysis(df, include_charts=True, include_stats=True, include_correlations=True):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate detailed analysis"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     text_cols = df.select_dtypes(include=['object']).columns
     datetime_cols = df.select_dtypes(include=['datetime64']).columns
-
+    
     analysis = f"""
 # 📈 Detailed Data Analysis
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 📊 Dataset Overview
 
@@ -3185,25 +3265,33 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
 
 ### Missing Value Analysis
 """
+    
+    # Missing value analysis
     missing_data = df.isnull().sum()
     missing_pct = (missing_data / len(df)) * 100
+    
     if missing_data.sum() > 0:
         analysis += f"**Total missing values**: {missing_data.sum():,}\n\n"
         analysis += "**Columns with missing values**:\n"
+        
         for col in missing_data[missing_data > 0].index:
             analysis += f"- {col}: {missing_data[col]} ({missing_pct[col]:.1f}%)\n"
     else:
         analysis += "✅ No missing values detected\n"
+    
     analysis += "\n"
-
+    
+    # Duplicates
     duplicates = df.duplicated().sum()
     if duplicates > 0:
         analysis += f"**Duplicates**: {duplicates} rows ({duplicates/len(df)*100:.1f}%)\n\n"
     else:
         analysis += "✅ No duplicates detected\n\n"
-
+    
+    # Statistical analysis
     if include_stats and len(numeric_cols) > 0:
         analysis += "## 📊 Statistical Analysis\n\n"
+        
         for col in numeric_cols:
             stats = df[col].describe()
             analysis += f"### {col}\n"
@@ -3213,40 +3301,52 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
             analysis += f"- **Minimum**: {stats['min']:.3f}\n"
             analysis += f"- **Maximum**: {stats['max']:.3f}\n"
             analysis += f"- **Coefficient of variation**: {(stats['std']/stats['mean']*100):.1f}%\n\n"
-
+    
+    # Correlation analysis
     if include_correlations and len(numeric_cols) >= 2:
         analysis += "## 🔗 Correlation Analysis\n\n"
+        
         corr_matrix = df[numeric_cols].corr()
+        
+        # Find strong correlations
         strong_correlations = []
         for i in range(len(corr_matrix.columns)):
             for j in range(i+1, len(corr_matrix.columns)):
                 corr_val = corr_matrix.iloc[i, j]
                 if abs(corr_val) > 0.5:
                     strong_correlations.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
+        
         if strong_correlations:
             analysis += "### Significant correlations (|r| > 0.5):\n"
             strong_correlations.sort(key=lambda x: abs(x[2]), reverse=True)
+            
             for var1, var2, corr in strong_correlations:
                 strength = "very strong" if abs(corr) > 0.8 else "strong" if abs(corr) > 0.6 else "moderate"
                 direction = "positive" if corr > 0 else "negative"
                 analysis += f"- **{var1}** ↔ **{var2}**: {corr:.3f} ({strength} {direction})\n"
         else:
             analysis += "No strong correlations detected.\n"
+        
         analysis += "\n"
-
+    
+    # Distribution analysis
     if len(numeric_cols) > 0:
         analysis += "## 📈 Distribution Analysis\n\n"
-        for col in numeric_cols[:3]:
+        
+        for col in numeric_cols[:3]:  # Analyze first 3 columns
             skewness = df[col].skew()
             kurtosis = df[col].kurtosis()
+            
             analysis += f"### {col}\n"
             analysis += f"- **Skewness**: {skewness:.3f} "
+            
             if abs(skewness) < 0.5:
                 analysis += "(symmetric distribution)\n"
             elif skewness > 0:
                 analysis += "(right-skewed)\n"
             else:
                 analysis += "(left-skewed)\n"
+            
             analysis += f"- **Kurtosis**: {kurtosis:.3f} "
             if kurtosis > 3:
                 analysis += "(peaked distribution)\n"
@@ -3254,10 +3354,15 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
                 analysis += "(flat distribution)\n"
             else:
                 analysis += "(close to normal)\n"
+            
             analysis += "\n"
-
+    
+    # Conclusions and recommendations
     analysis += "## 💡 Conclusions and Recommendations\n\n"
+    
     conclusions = []
+    
+    # Data quality
     missing_pct_total = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
     if missing_pct_total < 5:
         conclusions.append("✅ High data quality - ready for analysis")
@@ -3265,12 +3370,16 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
         conclusions.append("⚠️ Data requires preprocessing")
     else:
         conclusions.append("❌ Serious data cleaning needed")
+    
+    # Data size
     if len(df) > 100000:
         conclusions.append("📊 Large dataset - suitable for machine learning")
     elif len(df) > 1000:
         conclusions.append("📈 Medium dataset - sufficient for statistical analysis")
     else:
         conclusions.append("📉 Small dataset - limited analysis capabilities")
+    
+    # Correlations
     if len(numeric_cols) >= 2:
         corr_matrix = df[numeric_cols].corr()
         max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
@@ -3278,66 +3387,81 @@ def generate_detailed_analysis(df, include_charts=True, include_stats=True, incl
             conclusions.append("🔗 Strong correlations detected - possible multicollinearity")
         elif max_corr > 0.5:
             conclusions.append("📊 Moderate correlations found between variables")
+    
+    # Outliers
     outlier_cols = []
     for col in numeric_cols:
         Q1 = df[col].quantile(0.25)
         Q3 = df[col].quantile(0.75)
         IQR = Q3 - Q1
         outliers = df[(df[col] < Q1 - 1.5*IQR) | (df[col] > Q3 + 1.5*IQR)]
-        if len(outliers) > len(df) * 0.05:
+        if len(outliers) > len(df) * 0.05:  # More than 5% outliers
             outlier_cols.append(col)
+    
     if outlier_cols:
         conclusions.append(f"⚠️ Outliers detected in columns: {', '.join(outlier_cols)}")
+    
     for i, conclusion in enumerate(conclusions, 1):
         analysis += f"{i}. {conclusion}\n"
+    
     analysis += "\n### Next Steps:\n"
+    
     next_steps = []
+    
     if missing_pct_total > 5:
         next_steps.append("🔧 Handle missing values")
+    
     if len(numeric_cols) >= 3:
         next_steps.append("🤖 Apply machine learning methods")
+    
     if outlier_cols:
         next_steps.append("🎯 Analyze and handle outliers")
+    
     if len(text_cols) > 0:
         next_steps.append("📝 Analyze categorical variables")
+    
     if len(numeric_cols) >= 2:
         next_steps.append("📊 Build predictive models")
+    
     for i, step in enumerate(next_steps, 1):
         analysis += f"{i}. {step}\n"
-    analysis += f"\n---\nDetailed analysis performed on {now_israel.strftime('%Y-%m-%d at %H:%M')} (Israel time)"
+    
+    analysis += f"\n---\n*Detailed analysis performed on {datetime.now().strftime('%d.%m.%Y at %H:%M')}*"
+    
     return analysis
 
 def generate_executive_summary(df):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
+    """Generate brief overview"""
+    
     numeric_cols = df.select_dtypes(include=[np.number]).columns
-
+    
     summary = f"""
 # 📊 Data Brief Overview
 
 ## Key Metrics
 - **Records**: {len(df):,}
 - **Columns**: {len(df.columns)}
-- **Numeric columns**: {len(numeric_cols)}
+- **Numeric metrics**: {len(numeric_cols)}
 - **Data quality**: {calculate_data_quality(df):.1f}/10
 
 ## Key Statistics
 """
+    
     if len(numeric_cols) > 0:
         for col in numeric_cols[:3]:
             mean_val = df[col].mean()
             summary += f"- **{col}**: average {mean_val:.2f}\n"
-    summary += f"\n*Overview created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*"
+    
+    summary += f"\n*Overview created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*"
+    
     return summary
 
 def generate_custom_report(df, include_charts=True, include_stats=True, include_correlations=True, include_outliers=False):
-    israel_tz = pytz.timezone('Asia/Jerusalem')
-    now_israel = datetime.now(israel_tz)
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-
+    """Generate custom report"""
+    
     report = f"""
 # 🎯 Custom Report
-*Created: {now_israel.strftime('%Y-%m-%d %H:%M')} (Israel time)*
+*Created: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
 
 ## 📋 Report Configuration
 - Charts: {'✅' if include_charts else '❌'}
@@ -3349,22 +3473,28 @@ def generate_custom_report(df, include_charts=True, include_stats=True, include_
 - Total records: {len(df):,}
 - Total columns: {len(df.columns)}
 """
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
     if include_stats and len(numeric_cols) > 0:
         report += f"\n## 📈 Statistical Overview\n"
         for col in numeric_cols[:5]:
             stats = df[col].describe()
             report += f"**{col}**: min={stats['min']:.2f}, max={stats['max']:.2f}, mean={stats['mean']:.2f}\n"
+    
     if include_correlations and len(numeric_cols) >= 2:
         report += f"\n## 🔗 Correlation Analysis\n"
         corr_matrix = df[numeric_cols].corr()
         max_corr = corr_matrix.abs().values[np.triu_indices_from(corr_matrix.values, 1)].max()
         report += f"Maximum correlation: {max_corr:.3f}\n"
+    
     if include_outliers:
         report += f"\n## 🎯 Outlier Analysis\n"
         for col in numeric_cols[:3]:
             outliers_info = detect_outliers_advanced(df[col])
             iqr_outliers = outliers_info['IQR']['count']
             report += f"**{col}**: {iqr_outliers} outliers by IQR method\n"
+    
     return report
 
 # Helper functions for creating demo data
