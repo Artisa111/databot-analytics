@@ -1270,7 +1270,7 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
 
 ---
 
-📊 **Report Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+📊 **Report Generated**: {datetime.now().strftime('%Y-%m-%d')}
         """
         
         return report
