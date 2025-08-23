@@ -42,6 +42,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from sklearn.ensemble import RandomForestRegressor, IsolationForest
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -1269,8 +1270,10 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
 4. Monitor data quality over time
 
 ---
+    def get_israel_time():
+    return datetime.now(ZoneInfo("Asia/Jerusalem"))
 
-📊 **Report Generated**: {datetime.now().strftime('%Y-%m-%d')}
+📊 **Report Generated**: {get_israel_time().strftime('%Y-%m-%d %H:%M')}
         """
         
         return report
