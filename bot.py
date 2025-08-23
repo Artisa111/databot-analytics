@@ -42,7 +42,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime
-from zoneinfo import ZoneInfo
+import pytz
 from sklearn.ensemble import RandomForestRegressor, IsolationForest
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -83,7 +83,12 @@ class DataAnalyticsBot:
             raise ValueError("TELEGRAM_TOKEN not found in .env file!")
         
         self.application = Application.builder().token(TOKEN).build()
+        self.israel_tz = pytz.timezone('Asia/Jerusalem')
         self.setup_handlers()
+    
+    def get_israel_time(self):
+        """Get current time in Israel timezone"""
+        return datetime.now(self.israel_tz)
     
     # ================================================================
     #                      BOT INITIALIZATION METHODS
@@ -131,10 +136,13 @@ class DataAnalyticsBot:
         # Setup bot commands on first start
         await self.setup_bot_commands()
         
-        welcome_text = """
+        current_israel_time = self.get_israel_time().strftime('%Y-%m-%d %H:%M:%S %Z')
+        welcome_text = f"""
 🚀 **Welcome to DataBot Analytics Pro!**
 
 Advanced data analysis and machine learning at your fingertips.
+
+🕒 **Current Israel Time**: {current_israel_time}
 
 🎯 **What I can do:**
 • 📊 Statistical Analysis & Visualizations
@@ -1270,10 +1278,8 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
 4. Monitor data quality over time
 
 ---
-    def get_israel_time():
-    return datetime.now(ZoneInfo("Asia/Jerusalem"))
 
-📊 **Report Generated**: {get_israel_time().strftime('%Y-%m-%d %H:%M')}
+📊 **Report Generated**: {self.get_israel_time().strftime('%Y-%m-%d %H:%M:%S %Z')}
         """
         
         return report
@@ -1827,8 +1833,10 @@ CSV, Excel (XLS/XLSX) - Up to 50MB
         This method initializes the bot and starts the main event loop
         to handle incoming messages from Telegram.
         """
+        start_time = self.get_israel_time().strftime('%Y-%m-%d %H:%M:%S %Z')
         print("🤖 Starting DataBot Analytics Pro...")
         print(f"🔑 Token found: {TOKEN[:10]}...")
+        print(f"🕒 Started at: {start_time}")
         print("✅ Bot is ready and operational!")
         print("📱 Find your bot on Telegram and send /start")
         print("🔄 Press Ctrl+C to stop the bot")
