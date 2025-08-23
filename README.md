@@ -176,7 +176,7 @@ python bot_runner.py
 1. התחברו ל־Railway והקימו פרויקט חדש מהריפו
 2. הגדירו Services נפרדים:
    - **Web (Streamlit)**: `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
-   - **Worker (Bot)**: `python bot.py`
+   - **Worker (Bot)**: `python bot_runner.py`
 3. הגדירו משתני סביבה: `TELEGRAM_BOT_TOKEN`, `PORT`
 4. עקבו אחרי הלוגים עד שהשירותים פעילים
 
@@ -358,7 +358,7 @@ python bot_runner.py
 1. Sign in to Railway and create a new project from this repo
 2. Configure separate services:
    - **Web (Streamlit)**: `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
-   - **Worker (Bot)**: `python bot.py`
+   - **Worker (Bot)**: `python bot_runner.py`
 3. Set environment variables: `TELEGRAM_BOT_TOKEN`, `PORT`
 4. Deploy and monitor logs until both services are healthy
 
