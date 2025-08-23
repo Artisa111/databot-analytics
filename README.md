@@ -147,7 +147,7 @@ pip install -r requirements.txt
 ### 3. משתני סביבה
 ```bash
 export TELEGRAM_BOT_TOKEN=<הטוקן_שלכם>
-export PORT=8501
+export PORT=
 ```
 
 ### 4. הרצת האפליקציה
@@ -331,7 +331,7 @@ pip install -r requirements.txt
 ### 3. Environment variables
 ```bash
 export TELEGRAM_BOT_TOKEN=<your_token_here>
-export PORT=8501
+export PORT=
 ```
 
 ### 4. Run the app
