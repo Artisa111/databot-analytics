@@ -152,12 +152,12 @@ export PORT=
 
 ### 4. הרצת האפליקציה
 ```bash
-streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+streamlit run app.py --server.port 85_ _ --server.address 0.0.0.0
 ```
 
 ### 5. הרצת הבוט
 ```bash
-python bot.py
+python bot_runner.py
 ```
 
 </details>
@@ -270,7 +270,7 @@ python bot.py
 <table>
 <tr>
 <td width="50%">
-<img src="assets/screenshots/bot-commands.png" alt="Telegram bot — commands" width="100%">
+<img src="assets/screenshots/bot-commands (2).png" alt="Telegram bot — commands" width="100%">
 <p align="center"><em>Bot interface and available commands</em></p>
 </td>
 <td width="50%">
@@ -336,12 +336,12 @@ export PORT=
 
 ### 4. Run the app
 ```bash
-streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+streamlit run app.py --server.port 85_ _ --server.address 0.0.0.0
 ```
 
 ### 5. Run the bot
 ```bash
-python bot.py
+python bot_runner.py
 ```
 
 </details>
