@@ -419,7 +419,8 @@ Choose your preferred way to explore DataBot Analytics:
 </a>
 
 ---
+<div align="center">
 
-**Made with ❤️ for the data community**
+**💜 נוצר באהבה לאנליטיקת נתונים**
 
 </div>
