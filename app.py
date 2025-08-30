@@ -1105,6 +1105,21 @@ def show_upload():
         help=f"Supported formats: CSV, Excel, JSON. Max size: {max_size // (1024*1024)}MB"
     )
     
+    # ========================================================================
+    #                           אפשרות חלופית - בוט טלגרם
+    # ========================================================================
+    # הצגת כפתור יפה לבוט הטלגרם כאלטרנטיבה לטעינת קבצים
+    # הכפתור מוצג רק כאשר לא הועלו קבצים למערכת
+    if not uploaded_files:
+        st.markdown("---")
+        st.markdown("### 🤖 Or Use Telegram Bot:")
+        
+        # כפתור אינטראקטיבי לפתיחת הבוט עם אנימציה
+        if st.button("📱 Open DataBot", use_container_width=True, type="secondary"):
+            st.balloons()  # הצגת בלונים לחגיגה
+            st.success("🚀 Opening Telegram Bot...")
+            st.markdown("👉 **[Click here to open bot](https://t.me/maydatabot123_bot)**")
+            st.info("💡 The bot offers stable file uploads and mobile-friendly interface!")
 
     if uploaded_files:
         # Desktop processing - clean and fast
