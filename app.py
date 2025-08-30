@@ -1,75 +1,137 @@
 import streamlit as st
 
-# Safe mobile detection function
-def is_mobile_browser():
-    """Detect mobile device safely without any display issues"""
-    try:
-        # Use session state to cache detection result
-        if 'is_mobile_cache' not in st.session_state:
-            # Simple detection based on screen width
-            # This is safer than using headers
-            st.session_state.is_mobile_cache = False
-        return st.session_state.is_mobile_cache
-    except:
-        return False
-import pandas as pd 
-import plotly.express as px  
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
-from datetime import datetime, timedelta
-import pytz
-import seaborn as sns
-import time
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from scipy import stats
-import sqlite3
-import os, sqlite3
-import io
-import os
+# ========================================================================
+#                           מערכת אימות אופציונלית - רישום והתחברות
+# ========================================================================
+# מערכת רישום יפה ואופציונלית עם email וסיסמה
+# לביטול המערכת: שנה את ENABLE_AUTH ל-False
+ENABLE_AUTH = True
 
-
-
-
-
-# ---------- Optional PostgreSQL driver (safe import) ----------
 try:
-    import psycopg2  # noqa: F401
-    _HAS_PG = True
+    import auth  # ייבוא מודול האימות
+    AUTH_AVAILABLE = True
+except ImportError:
+    AUTH_AVAILABLE = False
+    ENABLE_AUTH = False
+
+# ========================================================================
+#                           בלוק ייבוא הספריות הראשיות
+# ========================================================================
+# פונקציה בטוחה לזיהוי מכשירים ניידים
+def is_mobile_browser():
+    """
+    זיהוי מכשיר נייד בצורה בטוחה ללא בעיות תצוגה
+    
+    מטרת הפונקציה:
+    - לזהות אם המשתמש משתמש במכשיר נייד
+    - לשמור את התוצאה בסשן כדי למנוע בדיקות חוזרות
+    - להחזיר False כברירת מחדל למניעת שגיאות
+    
+    החזרה: bool - True אם מכשיר נייד, False אחרת
+    """
+    try:
+        # שימוש בסטטוס הסשן כדי לשמור את תוצאת הזיהוי
+        if 'is_mobile_cache' not in st.session_state:
+            # בדיקת רוחב המסך או הגדרה ידנית על ידי המשתמש
+            # כברירת מחדל נניח שזה לא מכשיר נייד
+            mobile_detected = False
+            
+            # אם המשתמש הגדיר ידנית במקום אחר
+            if 'mobile_device_manual' in st.session_state:
+                mobile_detected = st.session_state.mobile_device_manual
+                
+            st.session_state.is_mobile_cache = mobile_detected
+        return st.session_state.is_mobile_cache
+    except (AttributeError, KeyError, Exception) as e:
+        # רישום שגיאה לדיבוג, אך החזרת ערך בטוח
+        return False
+
+# ========================================================================
+#                           ייבוא ספריות ניתוח נתונים
+# ========================================================================
+import pandas as pd                 # ספרייה לעבודה עם נתונים טבלאיים
+import plotly.express as px         # ספרייה ליצירת תרשימים אינטראקטיביים
+import plotly.graph_objects as go   # אובייקטים מתקדמים לתרשימים
+from plotly.subplots import make_subplots  # יצירת תרשימים מורכבים עם תתי-גרפים
+import numpy as np                  # ספרייה לחישובים נומריים
+from datetime import datetime, timedelta  # עבודה עם תאריכים וזמנים
+import pytz                         # טיפול באזורי זמן
+import seaborn as sns              # ספרייה נוספת לויזואליזציה
+
+# ========================================================================
+#                           הגדרות תצוגה ורינדור
+# ========================================================================
+import time                        # פונקציות זמן ושהיה
+import matplotlib                  # ספרייה בסיסית לתרשימים
+matplotlib.use('Agg')             # הגדרת רינדור ללא ממשק גרפי (backend)
+import matplotlib.pyplot as plt    # פונקציות יצירת תרשימים
+
+# ========================================================================
+#                           ספריות למידת מכונה
+# ========================================================================
+from sklearn.cluster import KMeans              # אלגוריתם K-Means לקלאסטרינג
+from sklearn.decomposition import PCA          # ניתוח רכיבים ראשיים
+from sklearn.preprocessing import StandardScaler  # נרמול נתונים
+from scipy import stats                        # חישובים סטטיסטיים מתקדמים
+
+# ========================================================================
+#                           ספריות ניהול קבצים ובסיסי נתונים
+# ========================================================================
+import sqlite3                     # עבודה עם בסיס נתונים SQLite
+import os                          # פונקציות מערכת הפעלה  
+import io                          # פונקציות קלט/פלט
+
+
+
+
+
+# ========================================================================
+#                         טעינת מנהל PostgreSQL אופציונלי  
+# ========================================================================
+# בלוק זה מנסה לטעון את מנהל PostgreSQL בצורה בטוחה
+try:
+    import psycopg2  # noqa: F401    # מנהל PostgreSQL לבסיס נתונים מתקדם
+    _HAS_PG = True                   # דגל המציין שהמנהל זמין
 except Exception:
-    _HAS_PG = False
-# -------------------------------------------------------------
+    _HAS_PG = False                  # במקרה של כישלון, ממשיכים ללא PostgreSQL
 
 
 
 
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-import requests
-import warnings
-warnings.filterwarnings('ignore')
+# ========================================================================
+#                           ספריות דוחות ורשת
+# ========================================================================
+from reportlab.pdfgen import canvas         # יצירת קבצי PDF
+from reportlab.lib.pagesizes import letter  # גדלי עמודים לPDF
+import requests                             # בקשות HTTP
+import warnings                             # ניהול אזהרות
+warnings.filterwarnings('ignore')          # השתקת אזהרות מיותרות
 
-# Page configuration with mobile optimizations
+# ========================================================================
+#                           הגדרות עמוד Streamlit
+# ========================================================================
+# הגדרת תצורת העמוד עם אופטימיזציות למכשירים ניידים
 st.set_page_config(
-    page_title="DataBot Analytics Pro", 
-    page_icon="🚀", 
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="DataBot Analytics Pro",     # כותרת הדף
+    page_icon="🚀",                        # אייקון הדף
+    layout="wide",                         # פריסה רחבה
+    initial_sidebar_state="expanded"       # סרגל צד מורחב כברירת מחדל
 )
 
-# Mobile-specific configuration (simplified)
+# ========================================================================
+#                           הגדרות מיוחדות למכשירים ניידים
+# ========================================================================
+# תצורה מיוחדת למכשירים ניידים (פשוטה)
 if 'mobile_config_set' not in st.session_state:
-    # Just set a flag for mobile optimizations
-    # We'll handle file size limits in the upload function
+    # הגדרת דגל לאופטימיזציות נייד
+    # נטפל במגבלות גודל קבצים בפונקציית ההעלאה
     st.session_state.mobile_config_set = True
 
-# CSS styles with mobile enhancements
+# ========================================================================
+#                           עיצוב CSS עם שיפורים למכשירים ניידים
+# ========================================================================
+# בלוק זה מכיל את כל הגדרות העיצוב לאפליקציה
 st.markdown("""
 <style>
     .main-header {
@@ -147,111 +209,162 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ========================================================================
+#                           פונקציה ראשית של האפליקציה
+# ========================================================================
 def main():
+    """
+    פונקציית הראשית של יישום DataBot Analytics Pro
+    
+    מטרת הפונקציה:
+    - הגדרת ממשק המשתמש הראשי
+    - ניהול הגדרות מכשירים ניידים/דסקטופ  
+    - הצגת תפריט ניווט וחלקי האפליקציה השונים
+    - טיפול באופטימיזציות מיוחדות למכשירים ניידים
+    """
+    
+    # ========================================================================
+    #                           מערכת רישום והתחברות אופציונלית
+    # ========================================================================
+    # בדיקת מערכת האימות בצורה בטוחה עם נפילה חזרה
+    if ENABLE_AUTH and AUTH_AVAILABLE:
+        # בדיקה אם להציג ממשק האימות
+        if st.session_state.get("show_auth_ui", False):
+            auth.show_auth_ui()  # הצגת חלון רישום/התחברות
+            return  # עצירה כאן להצגת ממשק האימות בלבד
+            
+        # הוספת אפשרות התחברות בסרגל הצד
+        with st.sidebar:
+            st.markdown("---")
+            if not auth.check_authentication():
+                # כפתור התחברות/רישום
+                if st.button("🔐 Login/Register", type="primary", use_container_width=True):
+                    st.session_state.show_auth_ui = True
+                    st.rerun()
+                st.info("📝 Login for personalized experience")
+            else:
+                # הצגת פרטי המשתמש המחובר
+                auth.show_user_info()
+                st.success("✅ התחברת בהצלחה!")
+    
+    # הצגת כותרת ראשית מעוצבת
     st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
     
-    # Add mobile device toggle in sidebar  
-    st.sidebar.markdown("### 📱 Device Settings")
-    is_mobile_device = st.sidebar.checkbox("📱 I'm using mobile device", value=False, 
-                                          help="Check this if you're on mobile for optimized experience")
+    # ========================================================================
+    #                           הגדרות מכשיר - אוטומטי לפי גודל מסך
+    # ========================================================================
+    # זיהוי אוטומטי של מכשיר נייד (ללא צורך בבחירה ידנית)
+    is_mobile_device = False  # Default to desktop for clean UI
     
-    # Show device-specific messages
-    if is_mobile_device:
-        # Mobile-only warnings and recommendations
-        st.warning("⚠️ **Mobile Version Notice:** Streamlit has limited file upload support on mobile browsers.")
-        
-        # Desktop version redirect
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("🖥️ **Open Desktop Version**", use_container_width=True, type="primary"):
-                st.balloons()
-                st.success("📋 **Copy this URL and open on computer:**")
-                st.code("https://databot-analytics-1.streamlit.app/", language="text")
-        
-        with col2:
-            if st.button("📱 **Use Telegram Bot**", use_container_width=True):
-                st.success("🚀 Telegram bot: https://t.me/maydatabot123_bot")
-        
-        st.success("📱 **Mobile Mode Active:** File size limited to 5MB for stability")
-        
-    else:
-        st.success("🖥️ **Desktop Version Active** - Full functionality available, no AxiosError!")
+    # ========================================================================
+    #                           הודעת ברוכים הבאים עבור דסקטופ
+    # ========================================================================
+    # הודעה נעימה ופשוטה למשתמשי דסקטופ
+    st.success("🖥️ **Desktop Version Active** - Full functionality available!")
     
-    # Always show project notice
+    # הודעה תמיד מוצגת - הבהרה שזה פרויקט לדוגמה
     st.warning("🙌 This application is presented as a pet project, so it shouldn't be taken too seriously. Thanks for giving it a try!")
     
+    # ========================================================================
+    #                           תפריט ניווט בסרגל הצד
+    # ========================================================================
     with st.sidebar:
-        st.markdown("### 🎯 Navigation")
-        st.markdown("---")
+        st.markdown("### 🎯 Navigation")  # כותרת ניווט
+        st.markdown("---")              # קו הפרדה
         
-        # Navigation with descriptions
+        # תפריט ניווט עם תיאורים
         page = st.selectbox(
-            "Select section",
+            "Select section",           # תווית הבחירה
             ["🏠 Dashboard", "📁 Data Upload", "📈 Charts", "📊 Statistics", 
              "🤖 Machine Learning", "🧪 A/B Testing", "💾 Database", "📄 Reports"]
         )
         
-        # Show current section info
+        # ========================================================================
+        #                           הצגת מידע על הסקציה הנוכחית
+        # ========================================================================
+        # מילון המכיל תיאור לכל סקציה באפליקציה
         section_info = {
-            "🏠 Dashboard": "Main overview with key metrics and insights",
-            "📁 Data Upload": "Upload and clean CSV, Excel, JSON files", 
-            "📈 Charts": "Interactive visualizations including 3D plots",
-            "📊 Statistics": "Descriptive stats and statistical tests",
-            "🤖 Machine Learning": "Clustering, PCA, anomaly detection",
-            "🧪 A/B Testing": "Statistical significance testing",
-            "💾 Database": "SQL operations and database management",
-            "📄 Reports": "Generate comprehensive analysis reports"
+            "🏠 Dashboard": "Main overview with key metrics and insights",      # לוח בקרה ראשי
+            "📁 Data Upload": "Upload and clean CSV, Excel, JSON files",       # העלאת וניקוי קבצים
+            "📈 Charts": "Interactive visualizations including 3D plots",       # תרשימים אינטראקטיביים
+            "📊 Statistics": "Descriptive stats and statistical tests",        # סטטיסטיקה ובדיקות
+            "🤖 Machine Learning": "Clustering, PCA, anomaly detection",       # למידת מכונה
+            "🧪 A/B Testing": "Statistical significance testing",             # בדיקות A/B
+            "💾 Database": "SQL operations and database management",          # ניהול בסיסי נתונים
+            "📄 Reports": "Generate comprehensive analysis reports"            # יצירת דוחות
         }
         
+        # הצגת מידע על הסקציה הנבחרת
         st.info(section_info[page])
-        st.markdown("---")
+        st.markdown("---")  # קו הפרדה
         
-        # Quick actions sidebar
+        # ========================================================================
+        #                           פעולות מהירות בסרגל הצד
+        # ========================================================================
+        # הצגת פעולות מהירות רק אם יש נתונים טעונים
         if 'data' in st.session_state:
-            st.markdown("### ⚡ Quick Actions")
+            st.markdown("### ⚡ Quick Actions")  # כותרת פעולות מהירות
             
+            # קבלת הנתונים והעמודות הנומריות
             df = st.session_state.data
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             
+            # כפתור סיכום נתונים מהיר
             if st.button("🎯 Data Summary", use_container_width=True):
                 st.session_state.show_summary = True
             
+            # כפתור מתאם מהיר (זמין רק עם 2+ עמודות נומריות)
             if len(numeric_cols) >= 2 and st.button("🔗 Quick Correlation", use_container_width=True):
                 st.session_state.show_correlation = True
             
+            # כפתור גרף תלת מימדי (זמין רק עם 3+ עמודות נומריות)
             if len(numeric_cols) >= 3 and st.button("🌐 3D Quick Plot", use_container_width=True):
                 st.session_state.show_3d = True
             
-            st.markdown("---")
+            st.markdown("---")  # קו הפרדה
             
-            # Data info in sidebar
-            st.markdown("### 📊 Data Info")
-            st.write(f"**Rows:** {len(df):,}")
-            st.write(f"**Columns:** {len(df.columns)}")
-            st.write(f"**Numeric:** {len(numeric_cols)}")
+            # ========================================================================
+            #                           מידע על הנתונים בסרגל הצד
+            # ========================================================================
+            st.markdown("### 📊 Data Info")      # כותרת מידע נתונים
+            st.write(f"**Rows:** {len(df):,}")           # מספר שורות
+            st.write(f"**Columns:** {len(df.columns)}")  # מספר עמודות
+            st.write(f"**Numeric:** {len(numeric_cols)}") # מספר עמודות נומריות
             
+            # חישוב אחוז הנתונים החסרים
             missing_pct = (df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
             quality_color = "🟢" if missing_pct < 5 else "🟡" if missing_pct < 15 else "🔴"
             st.write(f"**Quality:** {quality_color} {100-missing_pct:.1f}%")
         
         else:
-            st.markdown("### 🚀 Getting Started")
-            st.write("1. Upload your data files")
-            st.write("2. Or load demo data")
-            st.write("3. Explore with charts")
-            st.write("4. Run ML analysis")
-            st.write("5. Generate reports")
+            # ========================================================================
+            #                           מדריך התחלה למשתמשים חדשים
+            # ========================================================================
+            st.markdown("### 🚀 Getting Started")  # כותרת מדריך התחלה
+            st.write("1. Upload your data files")   # העלאת קבצים
+            st.write("2. Or load demo data")        # טעינת נתוני דוגמה
+            st.write("3. Explore with charts")     # חקירה עם תרשימים
+            st.write("4. Run ML analysis")         # ניתוח למידת מכונה
+            st.write("5. Generate reports")        # יצירת דוחות
             
-            st.markdown("---")
-            st.markdown("### 📋 Supported Files")
-            st.write("• CSV files")
-            st.write("• Excel (.xlsx, .xls)")
-            st.write("• JSON files")
-            st.write("• Multiple file upload")
+            st.markdown("---")  # קו הפרדה
+            
+            # ========================================================================
+            #                           סוגי קבצים נתמכים
+            # ========================================================================
+            st.markdown("### 📋 Supported Files")  # כותרת קבצים נתמכים
+            st.write("• CSV files")                # קבצי CSV
+            st.write("• Excel (.xlsx, .xls)")     # קבצי אקסל
+            st.write("• JSON files")              # קבצי JSON
+            st.write("• Multiple file upload")    # העלאת קבצים מרובים
         
-        st.markdown("---")
-        st.markdown("### 🆘 Need Help?")
-        with st.expander("📖 How to use"):
+        st.markdown("---")  # קו הפרדה
+        
+        # ========================================================================
+        #                           מדור עזרה ותמיכה
+        # ========================================================================
+        st.markdown("### 🆘 Need Help?")  # כותרת עזרה
+        with st.expander("📖 How to use"):  # קופסת עזרה מתרחבת
             st.write("""
             **Quick Start:**
             1. Go to Data Upload
@@ -267,39 +380,62 @@ def main():
             • Reports for final analysis
             """)
     
-    # Handle quick actions
+    # ========================================================================
+    #                           טיפול בפעולות מהירות
+    # ========================================================================
+    # בדיקה והרצה של פעולות מהירות שהמשתמש ביקש
     if 'show_summary' in st.session_state and st.session_state.show_summary:
-        show_quick_summary()
-        st.session_state.show_summary = False
+        show_quick_summary()                    # הצגת סיכום מהיר
+        st.session_state.show_summary = False   # איפוס הדגל
     
     if 'show_correlation' in st.session_state and st.session_state.show_correlation:
-        show_quick_correlation()
-        st.session_state.show_correlation = False
+        show_quick_correlation()                  # הצגת מתאם מהיר
+        st.session_state.show_correlation = False # איפוס הדגל
         
     if 'show_3d' in st.session_state and st.session_state.show_3d:
-        show_quick_3d()
-        st.session_state.show_3d = False
+        show_quick_3d()                         # הצגת גרף תלת מימדי מהיר
+        st.session_state.show_3d = False        # איפוס הדגל
     
-    # Page routing
-    if page == "🏠 Dashboard":
+    # ========================================================================
+    #                           ניתוב דפים - הפניה לפונקציות המתאימות
+    # ========================================================================
+    # בדיקת הדף הנבחר והפעלת הפונקציה המתאימה
+    if page == "🏠 Dashboard":                  # דף לוח הבקרה הראשי
         show_dashboard()
-    elif page == "📁 Data Upload":
+    elif page == "📁 Data Upload":             # דף העלאת נתונים
         show_upload()
-    elif page == "📈 Charts":
+    elif page == "📈 Charts":                  # דף תרשימים
         show_charts()
-    elif page == "📊 Statistics":
+    elif page == "📊 Statistics":              # דף סטטיסטיקות
         show_stats()
-    elif page == "🤖 Machine Learning":
+    elif page == "🤖 Machine Learning":        # דף למידת מכונה
         show_ml()
-    elif page == "🧪 A/B Testing":
+    elif page == "🧪 A/B Testing":            # דף בדיקות A/B
         show_ab_testing()
-    elif page == "💾 Database":
+    elif page == "💾 Database":               # דף בסיס נתונים
         show_database()
-    elif page == "📄 Reports":
+    elif page == "📄 Reports":                # דף דוחות
         show_reports()
 
+# ========================================================================
+#                           פונקציות עזר ותובנות נתונים
+# ========================================================================
+
 def show_insights_and_advice(df):
-    """Generate insights and advice based on data"""
+    """
+    יצירת תובנות והמלצות על בסיס הנתונים
+    
+    מטרת הפונקציה:
+    - ניתוח איכות הנתונים ויצירת תובנות אוטומטיות
+    - הצגת המלצות לשיפור הנתונים והניתוח
+    - זיהוי דפוסים וחריגות בנתונים
+    - מתן עצות מעשיות למשתמש
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים לניתוח
+    
+    החזרה: ללא - הפונקציה מציגה את התוצאות ישירות בממשק
+    """
     
     if df is None or len(df) == 0:
         return
@@ -381,6 +517,22 @@ def show_insights_and_advice(df):
             st.markdown(f'<div class="advice-box">{adv}</div>', unsafe_allow_html=True)
 
 def show_dashboard():
+    """
+    הצגת לוח הבקרה הראשי של האפליקציה
+    
+    מטרת הפונקציה:
+    - הצגת מסך פתיחה אטרקטיבי עם אפשרויות טעינת נתונים
+    - הצגת מטריקות מפתח ותובנות על הנתונים הטעונים
+    - מתן גישה מהירה לפונקציות הניתוח החשובות
+    - יצירת ממשק מרכזי לניווט בין היכולות השונות
+    
+    התנהגות:
+    - אם אין נתונים טעונים: הצגת מסך פתיחה עם כפתורי טעינת דוגמה
+    - אם יש נתונים: הצגת לוח בקרה מלא עם מטריקות ותרשימים
+    - כולל כפתורים לניתוח אוטומטי ויצירת תובנות חכמות
+    
+    החזרה: ללא - הפונקציה מציגה את התוכן ישירות בממשק
+    """
     st.markdown("## 🏠 Welcome to DataBot Analytics Pro!")
     
     # Enhanced Dashboard with multiple sections
@@ -655,7 +807,28 @@ def show_dashboard():
             st.plotly_chart(fig, use_container_width=True)
 
 def generate_smart_insights(df):
-    """Generate smart insights using advanced analysis"""
+    """
+    יצירת תובנות חכמות באמצעות ניתוח מתקדם של הנתונים
+    
+    מטרת הפונקציה:
+    - ביצוע ניתוח מעמיק ואוטומטי של מסגרת הנתונים
+    - זיהוי דפוסים, קשרים וחריגות בנתונים
+    - יצירת המלצות מותאמות אישית למשתמש
+    - הצגת תובנות בצורה בהירה ומובנת
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים לניתוח
+    
+    סוגי התובנות שמיוצרות:
+    - ניתוח גודל הדאטה והמלצות על טכניקות מתאימות
+    - זיהוי בעיות באיכות הנתונים (ערכים חסרים)
+    - מציאת מתאמים חזקים בין משתנים
+    - זיהוי ערכים חריגים (outliers)
+    - ניתוח התפלגויות והמלצות על טרנספורמציות
+    - הערכת רמת הייחודיות במשתנים קטגוריאליים
+    
+    החזרה: ללא - הפונקציה מציגה את התובנות ישירות בממשק
+    """
     st.markdown("### 🧠 Smart Insights")
     
     numeric_cols = df.select_dtypes(include=[np.number]).columns
@@ -730,7 +903,27 @@ def generate_smart_insights(df):
         st.info("🤖 No specific insights detected. Your data appears well-balanced!")
 
 def generate_dashboard_recommendations(df):
-    """Generate actionable recommendations for the dashboard"""
+    """
+    יצירת המלצות מעשיות ללוח הבקרה על בסיס ניתוח הנתונים
+    
+    מטרת הפונקציה:
+    - ניתוח מבנה הנתונים ויצירת המלצות מותאמות
+    - זיהוי הזדמנויות לניתוח מתקדם במסגרת הנתונים
+    - הצעת דרכי פעולה קונקרטיות לחקר הנתונים
+    - מתן כיוונים לשימוש באלגוריתמי למידת מכונה
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים לניתוח
+    
+    סוגי ההמלצות שמיוצרות:
+    - המלצות על סוגי תרשימים מתאימים
+    - הצעות לניתוחים סטטיסטיים ספציפיים
+    - כיוונים ליישום אלגוריתמי למידת מכונה
+    - המלצות על צעדי ניקוי נתונים נדרשים
+    - הצעות לבדיקות A/B מעניינות
+    
+    החזרה: ללא - הפונקציה מציגה את ההמלצות ישירות בממשק
+    """
     
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     text_cols = df.select_dtypes(include=['object']).columns
@@ -812,7 +1005,28 @@ def generate_dashboard_recommendations(df):
             st.info(f"**Recommended Action:** {rec['action']}")
 
 def create_financial_data():
-    """Create financial/investment demo data"""
+    """
+    יצירת נתוני דוגמה פיננסיים/השקעות לצורכי הדגמה
+    
+    מטרת הפונקציה:
+    - יצירת מסגרת נתונים סינתטית הדומה לנתונים פיננסיים אמיתיים
+    - הדמיה של מחירי מניות, נפחי מסחר ומדדים פיננסיים שונים
+    - יצירת קורלציות ריאליסטיות בין המשתנים הפיננסיים
+    - מתן בסיס לניתוח וויזואליזציה של נתונים פיננסיים
+    
+    הנתונים שנוצרים כוללים:
+    - מחירי מניות עם טרנד וולטיליות ריאליסטיים
+    - נפחי מסחר (Volume) עם התפלגות לוג-נורמלית  
+    - שווי שוק (Market Cap) מבוסס על מחיר המניה
+    - יחס מחיר לרווח (P/E Ratio) משתנה לפי סקטור
+    - תשואת דיבידנד (Dividend Yield)
+    - משתנים קטגוריאליים: סקטור, רמת סיכון
+    - מדד ESG (Environmental, Social, Governance)
+    - מטריקות מחושבות: תשואה יומית, וולטיליות, ממוצע נע
+    
+    החזרה:
+        DataFrame: מסגרת נתונים עם 500 רשומות של נתונים פיננסיים סינתטיים
+    """
     np.random.seed(456)
     
     n_records = 500
@@ -854,138 +1068,72 @@ def create_financial_data():
     return df
 
 def show_upload():
+    """
+    הצגת ממשק העלאת קבצים עם תמיכה למכשירים ניידים ודסקטופ
+    
+    מטרת הפונקציה:
+    - מתן אפשרויות להעלאת קבצי נתונים בפורמטים שונים (CSV, Excel, JSON)
+    - הטמעת אופטימיזציות מיוחדות למכשירים ניידים
+    - מתן חלופות לטעינת נתונים עבור משתמשי מכשירים ניידים
+    - יישום מנגנוני הגנה מפני שגיאות AxiosError
+    
+    פיצ'רים מרכזיים:
+    - זיהוי אוטומטי של מכשירים ניידים והתאמת ממשק
+    - הגבלת גודל קבצים (5MB למכשירים ניידים, 200MB לדסקטופ)
+    - תמיכה בהעלאה מרובה של קבצים
+    - אפשרויות חלופיות: בוט טלגרם, טעינת נתוני דוגמה
+    - מסכי עזרה ואפשרויות ניקוי נתונים
+    - תצוגה מקדימה של הנתונים לפני עיבוד
+    
+    התנהגות המערכת:
+    - במצב נייד: הגבלות קפדניות יותר וכלים נוחים יותר
+    - במצב דסקטופ: יכולות מלאות ותמיכה בקבצים גדולים
+    - שמירת הנתונים במצב הסשן להמשך עבודה
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 📂 Data Upload")
     
-    # Auto-detect mobile and suggest mobile mode
-    mobile_detected = False  # Use manual toggle only
-    default_mobile_mode = mobile_detected
-    
-    # Mobile compatibility improvements
-    is_mobile = st.sidebar.checkbox("📱 Mobile Mode (smaller file limits)", value=default_mobile_mode)
-    
-    if is_mobile:
-        st.success("📱 Mobile Mode active: Optimization for mobile devices")
-        st.info("✅ AxiosError protection: Files up to 5MB, retry mechanism, progress bar")
-        max_size = 5 * 1024 * 1024  # 5MB for mobile (more aggressive limit)
-        st.markdown("### 📁 File Upload - **5MB Limit for Mobile Stability**")
-    else:
-        max_size = 200 * 1024 * 1024  # 200MB for desktop
-        if mobile_detected:
-            st.warning("⚠️ Mobile device detected, but Mobile Mode is disabled. We recommend enabling it!")
+    # Desktop-optimized file upload (no mobile complexity)
+    max_size = 200 * 1024 * 1024  # 200MB for desktop
+    st.markdown("### 📁 File Upload - **Up to 200MB**")
 
     uploaded_files = st.file_uploader(
         "Select files",
         type=['csv', 'xlsx', 'xls', 'json'],
         accept_multiple_files=True,
-        help=f"Supported formats: CSV, Excel, JSON. Max size: {max_size // (1024*1024)}MB",
-        key="mobile_uploader" if is_mobile else "desktop_uploader"
+        help=f"Supported formats: CSV, Excel, JSON. Max size: {max_size // (1024*1024)}MB"
     )
     
-    # Alternative upload methods for mobile
-    if is_mobile and not uploaded_files:
-        st.markdown("---")
-        st.markdown("### 🔄 Alternative Methods:")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📱 Use Telegram Bot", use_container_width=True):
-                st.balloons()
-                st.success("🚀 Go to our Telegram bot for stable file uploads!")
-                st.markdown("👉 [Open Bot](https://t.me/maydatabot123_bot)")
-        
-        with col2:
-            if st.button("💾 Load Sample Data", use_container_width=True):
-                # Create sample data for testing
-                sample_df = generate_financial_data()
-                st.session_state.data = sample_df
-                st.success("✅ Sample data loaded!")
-                st.rerun()
-        
-        # Beautiful desktop redirect for mobile users
-        st.markdown("---")
-        st.markdown("### 💻 **Better Experience Available!**")
-        
-        # Create attractive desktop redirect section
-        desktop_col1, desktop_col2 = st.columns([2, 1])
-        
-        with desktop_col1:
-            st.markdown("""
-            <div style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                padding: 20px;
-                border-radius: 15px;
-                color: white;
-                text-align: center;
-                margin: 10px 0;
-            ">
-                <h3>🖥️ Switch to Desktop Version</h3>
-                <p><strong>Experience FULL functionality without AxiosError!</strong></p>
-                <p>✅ Upload large files (up to 200MB)<br>
-                ✅ No network errors<br>
-                ✅ Faster processing<br>
-                ✅ All features unlocked</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with desktop_col2:
-            if st.button("🖥️ Open Desktop Version", use_container_width=True, type="primary"):
-                st.balloons()
-                st.success("🚀 Opening desktop version...")
-                # Get current URL and display it
-                st.markdown("📋 **Copy this link and open on computer:**")
-                st.code("https://databot-analytics-1.streamlit.app/", language="text")
-                st.info("💡 Or share this app URL with yourself via email/messenger")
-        
-        # Emergency reset for persistent AxiosError
-        st.markdown("---")
-        st.markdown("### 🚨 Emergency AxiosError Fix:")
-        if st.button("🔧 Reset App State", use_container_width=True):
-            # Clear all session state
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.success("✅ App state reset! Please refresh page and try again.")
-            st.balloons()
-            st.stop()
 
     if uploaded_files:
-        # Pre-upload checks and optimizations
-        if is_mobile:
-            st.info("📱 **Mobile Mode Active** - Processing with AxiosError protection...")
-            
-            # Clear any cached data that might cause conflicts
-            if 'data' in st.session_state:
-                del st.session_state['data']
-            
-            # Force garbage collection for mobile
-            import gc
-            gc.collect()
+        # Desktop processing - clean and fast
+        st.info("🚀 **Processing files...**")
+        
+        # Clear any cached data that might cause conflicts
+        if 'data' in st.session_state:
+            del st.session_state['data']
         
         dfs = []
         
-        # Progress bar for mobile users
+        # Progress bar for desktop processing
         progress_bar = st.progress(0)
         status_text = st.empty()
-        
-        # Add connection test for mobile
-        if is_mobile:
-            status_text.text("🔍 Testing connection stability...")
-            time.sleep(0.5)  # Brief pause to stabilize connection
         
         for i, uploaded_file in enumerate(uploaded_files):
             try:
                 # Check file size
                 file_size = uploaded_file.size if hasattr(uploaded_file, 'size') else len(uploaded_file.getvalue())
                 
-                if is_mobile and file_size > max_size:
+                if file_size > max_size:
                     st.error(f"❌ {uploaded_file.name}: File too large ({file_size/(1024*1024):.1f}MB). Max: {max_size/(1024*1024)}MB")
-                    st.info("💡 **Solution:** Use desktop version for large files!")
                     continue
                 
                 status_text.text(f"📂 Processing {uploaded_file.name}...")
                 file_name = uploaded_file.name.lower()
                 
-                # Retry mechanism for mobile
-                max_retries = 3 if is_mobile else 1
+                # Desktop processing - no retries needed
+                max_retries = 1
                 df = None
                 
                 for attempt in range(max_retries):
@@ -996,24 +1144,15 @@ def show_upload():
                                 sample = str(uploaded_file.read(1024))
                                 uploaded_file.seek(0)
                                 
-                                # Mobile-specific: read in chunks to prevent memory issues
-                                if is_mobile:
-                                    if ';' in sample:
-                                        df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', chunksize=None, nrows=10000)
-                                    else:
-                                        df = pd.read_csv(uploaded_file, encoding='utf-8', chunksize=None, nrows=10000)
+                                # Desktop processing - full file reading
+                                if ';' in sample:
+                                    df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
                                 else:
-                                    if ';' in sample:
-                                        df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-                                    else:
-                                        df = pd.read_csv(uploaded_file, encoding='utf-8')
+                                    df = pd.read_csv(uploaded_file, encoding='utf-8')
                             except UnicodeDecodeError:
                                 # Fallback encoding for problematic files
                                 uploaded_file.seek(0)
-                                if is_mobile:
-                                    df = pd.read_csv(uploaded_file, encoding='latin-1', nrows=10000)
-                                else:
-                                    df = pd.read_csv(uploaded_file, encoding='latin-1')
+                                df = pd.read_csv(uploaded_file, encoding='latin-1')
                                 
                         elif file_name.endswith(('.xlsx', '.xls')):
                             df = pd.read_excel(uploaded_file)
@@ -1035,11 +1174,6 @@ def show_upload():
                             raise retry_error
                 
                 if df is not None:
-                    # Limit rows for mobile to prevent memory issues
-                    if is_mobile and len(df) > 10000:
-                        st.warning(f"📱 Mobile Mode: Limiting {uploaded_file.name} to first 10,000 rows for stability")
-                        st.info("💻 **Desktop version** can handle unlimited rows!")
-                        df = df.head(10000)
                     
                     dfs.append(df)
                     st.success(f"✅ {uploaded_file.name} — Loaded {len(df)} rows, {len(df.columns)} columns")
@@ -1062,8 +1196,6 @@ def show_upload():
                     - 📱 **Use Telegram bot** instead
                     - 📝 **Try smaller file** (<5MB)
                     """)
-                elif is_mobile:
-                    st.info("💡 Try enabling Mobile Mode or use desktop version for large files")
         
         # Clear progress indicators
         progress_bar.empty()
@@ -1073,9 +1205,24 @@ def show_upload():
             if len(dfs) == 1:
                 combined_df = dfs[0]
             else:
-                # Combine files
+                # בדיקת זיכרון לפני איחוד קבצים
+                total_rows = sum(len(df) for df in dfs)
+                total_memory_mb = sum(df.memory_usage(deep=True).sum() / (1024*1024) for df in dfs)
+                
+                # אזהרה אם הנתונים גדולים מדי
+                if total_rows > 1000000:  # יותר ממיליון שורות
+                    st.warning(f"⚠️ **Large dataset detected:** {total_rows:,} total rows, ~{total_memory_mb:.1f} MB")
+                    st.info("This may use significant memory. Consider processing files individually if you experience issues.")
+                elif total_memory_mb > 500:  # יותר מ-500MB
+                    st.warning(f"⚠️ **Memory usage:** ~{total_memory_mb:.1f} MB - Processing large dataset...")
+                
+                # Combine files with improved error handling
                 try:
-                    combined_df = pd.concat(dfs, ignore_index=True)
+                    with st.spinner("🔄 Combining files..."):
+                        combined_df = pd.concat(dfs, ignore_index=True)
+                except MemoryError:
+                    st.error("❌ **Memory Error:** Dataset too large to combine. Try processing files individually.")
+                    combined_df = dfs[0]  # Use first file as fallback
                 except Exception as e:
                     st.error(f"Error combining files: {e}")
                     combined_df = dfs[0]  # Use first file
@@ -1121,6 +1268,33 @@ def show_upload():
                         st.info("No numeric columns for analysis")
 
 def show_charts():
+    """
+    הצגת ממשק ויזואליזציות נתונים אינטראקטיביות
+    
+    מטרת הפונקציה:
+    - מתן אפשרויות יצירת תרשימים מגוונים ואינטראקטיביים
+    - תמיכה בויזואליזציות דו-מימדיות ותלת-מימדיות
+    - יצירת תרשימי התפלגות, קורלציה וניתוח טרנדים
+    - אפשרויות התאמה אישית של התרשימים
+    
+    סוגי התרשימים הזמינים:
+    - תרשימי עמודות ופיזור (Scatter plots)
+    - תרשימי קו וטרנדים זמניים
+    - היסטוגרמות והתפלגויות
+    - מפות חום של מתאמים (Heatmaps)
+    - תרשימים תלת-מימדיים (3D Scatter)
+    - תרשימי Box Plot לזיהוי ערכים חריגים
+    - תרשימי עוגה (Pie Charts) למשתנים קטגוריאליים
+    
+    פיצ'רים מתקדמים:
+    - אפשרויות סינון דינמיות של הנתונים
+    - בחירת צבעים וסגנונות התרשימים
+    - יכולות זום והגדלה במצבים אינטראקטיביים
+    - אפשרויות הורדה וייצוא התרשימים
+    - ניתוח טרנדים אוטומטי עם המלצות
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 📈 Data Visualization")
     
     if 'data' not in st.session_state:
@@ -1479,7 +1653,25 @@ def show_charts():
             st.info("📊 Select appropriate data types for the chosen chart")
 
 def analyze_trend(series):
-    """Enhanced trend analysis"""
+    """
+    ניתוח טרנדים מתקדם של סדרת נתונים
+    
+    מטרת הפונקציה:
+    - ביצוע ניתוח רגרסיה לינארית לזיהוי כיוון הטרנד
+    - חישוב עוצמת הטרנד באמצעות מקדם המתאם
+    - הערכת שיעור השינוי האחוזי בסדרה
+    - מתן תיאור מילולי מפורט של הטרנד
+    
+    פרמטרים:
+        series (pandas.Series): סדרת הנתונים לניתוח
+    
+    החזרה:
+        str: תיאור מפורט של הטרנד כולל כיוון, עוצמה ושיעור שינוי
+        
+    דוגמאות לתוצאות:
+    - "Strong upward trend (R²=0.891, +15.3% change)"
+    - "Weak downward trend (R²=0.234, -3.2% change)"
+    """
     if len(series) < 2:
         return "Insufficient data"
     
@@ -1519,7 +1711,25 @@ def analyze_trend(series):
     return f"{strength.title()} {direction} trend (R²={correlation**2:.3f}, {pct_change:+.1f}% change)"
 
 def analyze_trend(series):
-    """Trend analysis in data"""
+    """
+    ניתוח טרנדים פשוט של סדרת נתונים
+    
+    מטרת הפונקציה:
+    - השוואה בין החצי הראשון לחצי השני של הסדרה
+    - חישוב שיעור השינוי בין החלקים
+    - קביעת כיוון הטרנד על בסיס השוואה זו
+    
+    פרמטרים:
+        series (pandas.Series): סדרת הנתונים לניתוח
+    
+    החזרה:
+        str: תיאור קצר של הטרנד
+        
+    דוגמאות לתוצאות:
+    - "Growing trend (+8.5%)"
+    - "Declining trend (-12.3%)"
+    - "Stable trend (+2.1%)"
+    """
     if len(series) < 2:
         return "Insufficient data"
     
@@ -1537,6 +1747,32 @@ def analyze_trend(series):
         return f"Stable trend ({change_pct:.1f}%)"
 
 def show_stats():
+    """
+    הצגת ממשק ניתוח סטטיסטי מתקדם של הנתונים
+    
+    מטרת הפונקציה:
+    - מתן כלים מקיפים לניתוח סטטיסטי של מסגרת הנתונים
+    - הצגת סטטיסטיקות תיאוריות וחיפוש דפוסים
+    - ביצוע בדיקות השערות סטטיסטיות
+    - זיהוי ערכים חריגים ואנומליות בנתונים
+    
+    יכולות הניתוח הסטטיסטי:
+    - סטטיסטיקות תיאוריות: ממוצע, חציון, סטיית תקן
+    - מדדי פיזור וצורת התפלגות: אסימטריה (skewness) וחדות (kurtosis) 
+    - ניתוח מתאמים בין משתנים עם מטריצת קורלציה
+    - בדיקות נורמליות של ההתפלגויות
+    - זיהוי ערכים חריגים בשיטות מתקדמות
+    - ניתוח שונות (ANOVA) לקבוצות שונות
+    - בדיקות t-test למשתנים רציפים
+    - בדיקות chi-square למשתנים קטגוריאליים
+    
+    פיצ'רים נוספים:
+    - ויזואליזציה של התפלגויות
+    - דוחות סטטיסטיים מפורטים
+    - המלצות על בדיקות סטטיסטיות נוספות
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 📊 Statistical Analysis")
     
     if 'data' not in st.session_state:
@@ -1665,7 +1901,31 @@ def show_stats():
                 st.write(f"• {method}: {data['count']} outliers ({data['percentage']:.1f}%)")
 
 def detect_outliers_advanced(series):
-    """Advanced outlier detection using multiple methods"""
+    """
+    זיהוי ערכים חריגים מתקדם באמצעות מספר שיטות
+    
+    מטרת הפונקציה:
+    - זיהוי ערכים חריגים בסדרת נתונים בשיטות סטטיסטיות מגוונות
+    - השוואה בין שיטות זיהוי שונות לקבלת תמונה מקיפה
+    - הערכת רמת החומרה של הערכים החריגים
+    - מתן המלצות לטיפול בערכים חריגים
+    
+    שיטות זיהוי המיושמות:
+    - שיטת IQR (Interquartile Range) - הקלאסית
+    - שיטת Z-Score - בהתבסס על סטיית תקן
+    - שיטת Modified Z-Score - עמידה יותר לערכים חריגים
+    - ניתוח אחוזונים - זיהוי ערכים קיצוניים
+    
+    פרמטרים:
+        series (pandas.Series): סדרת הנתונים לבדיקה
+    
+    החזרה:
+        dict: מילון עם תוצאות כל שיטות הזיהוי:
+            - 'iqr_outliers': רשימת ערכים חריגים בשיטת IQR
+            - 'z_score_outliers': רשימת ערכים חריגים בZ-Score
+            - 'modified_z_outliers': רשימת ערכים חריגים בModified Z-Score
+            - 'summary': סיכום כמותי של הערכים החריגים
+    """
     
     results = {}
     clean_data = series.dropna()
@@ -1704,6 +1964,48 @@ def detect_outliers_advanced(series):
     return results
 
 def show_ml():
+    """
+    הצגת ממשק למידת מכונה עם אלגוריתמים מתקדמים
+    
+    מטרת הפונקציה:
+    - מתן כלים למידת מכונה בסיסיים ומתקדמים לניתוח נתונים
+    - יישום אלגוריתמי קלאסטרינג, הפחתת מימדים ואנומליה
+    - ויזואליזציה אינטראקטיבית של תוצאות אלגוריתמי למידת מכונה
+    - הערכה וביצועים של מודלים שונים
+    
+    אלגוריתמי למידת המכונה הזמינים:
+    
+    1. K-Means Clustering:
+       - קיבוץ נתונים לקבוצות הומוגניות
+       - בחירה אוטומטית או ידנית של מספר קבוצות
+       - ויזואליזציה של הקלאסטרים בממדים שונים
+       - הערכת איכות הקלאסטרינג עם Silhouette Score
+    
+    2. PCA (Principal Component Analysis):
+       - הפחתת מימדים תוך שמירה על מידע מקסימלי
+       - הצגת אחוז השונות המוסברת בכל רכיב
+       - ויזואליזציה דו-מימדית ותלת-מימדית של הנתונים
+       - ניתוח תרומת המשתנים המקוריים לרכיבים
+    
+    3. Anomaly Detection:
+       - זיהוי נקודות חריגות בנתונים
+       - שימוש באלגוריתם Isolation Forest
+       - הדגשה ויזואלית של הנקודות החריגות
+       - ניתוח מאפייני הנקודות החריגות
+    
+    4. Feature Importance Analysis:
+       - הערכת חשיבות המשתנים השונים
+       - ויזואליזציה של הדירוג החשיבות
+       - המלצות על משתנים לשמירה או הסרה
+    
+    פיצ'רים נוספים:
+    - אפשרויות התאמה של פרמטרי האלגוריתמים
+    - השוואה בין תוצאות שיטות שונות
+    - ייצוא תוצאות ומודלים מאומנים
+    - המלצות על השימוש המיטבי בכל אלגוריתם
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 🤖 Machine Learning")
     
     if 'data' not in st.session_state:
@@ -2184,6 +2486,49 @@ def show_ml():
             st.warning("⚠️ Select at least 2 features for analysis!")
 
 def show_ab_testing():
+    """
+    הצגת ממשק לביצוע בדיקות A/B ובדיקות סטטיסטיות השוואתיות
+    
+    מטרת הפונקציה:
+    - מתן כלים מתקדמים לביצוע בדיקות A/B מדעיות ומהימנות
+    - השוואה סטטיסטית בין קבוצות או מצבים שונים
+    - הערכת משמעות סטטיסטית של הבדלים שנצפו
+    - יצירת המלצות עסקיות מבוססות נתונים
+    
+    סוגי הבדיקות הזמינות:
+    
+    1. Independent T-Test:
+       - השוואה בין ממוצעים של שתי קבוצות בלתי תלויות
+       - בדיקת הבדלים משמעותיים ברמת ביטחון גבוהה
+       - הערכת גודל האפקט (Effect Size) Cohen's d
+       - המלצות לגודל מדגם נדרש
+    
+    2. Chi-Square Test:
+       - השוואה בין התפלגויות קטגוריאליות
+       - בדיקת עצמאות בין משתנים קטגוריאליים
+       - ניתוח טבלאות צולבות (Contingency Tables)
+       - הערכת עוצמת הקשר בין משתנים
+    
+    3. Welch's T-Test:
+       - גרסה עמידה של t-test לקבוצות עם שונויות שונות
+       - מתאים למקרים שבהם הנחת שווית השונויות לא מתקיימת
+       - ניתוח מתקדם יותר למדגמים לא מאוזנים
+    
+    4. Mann-Whitney U Test:
+       - בדיקה נון-פרמטרית לקבוצות עם התפלגות לא נורמלית
+       - השוואת חציונים במקום ממוצעים
+       - עמידות גבוהה לערכים חריגים
+    
+    פיצ'רים מתקדמים:
+    - יצירת נתוני דוגמה לבדיקות
+    - חישוב Power Analysis לקביעת גודל מדגם
+    - ויזואליזציה של התפלגויות והבדלים
+    - דוחות מפורטים עם פרשנות סטטיסטית
+    - המלצות לפעולות עתידיות
+    - חישוב רמת ביטחון ורווחי סמך
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 🧪 A/B Testing")
     
     col1, col2 = st.columns([1, 1])
@@ -2517,7 +2862,34 @@ def show_ab_testing():
             st.write("• Try using demo A/B test data to test the functionality")
 
 def generate_ab_test_data():
-    """Generate realistic A/B test data"""
+    """
+    יצירת נתוני דוגמה ריאליסטיים לבדיקות A/B
+    
+    מטרת הפונקציה:
+    - יצירת מסגרת נתונים סינתטית המדמה ניסוי A/B אמיתי
+    - הדמיה של שתי קבוצות: בקרה (Control) וניסיון (Treatment)
+    - יצירת הבדלים ריאליסטיים במטריקות העסקיות
+    - מתן דוגמה עבודה לתרגול בדיקות A/B
+    
+    המבנה של נתוני הדוגמה:
+    - Group: משתנה קטגוריאלי (A = Control, B = Treatment)
+    - Conversion_Rate: שיעור המרה (מטריקה עיקרית)
+    - Revenue: הכנסות ממוצעות
+    - Page_Views: מספר צפיות בעמוד
+    - Session_Duration: אורך הסשן בדקות
+    - User_Satisfaction: דירוג שביעות רצון
+    - Device_Type: סוג מכשיר (Desktop/Mobile/Tablet)
+    - Age_Group: קבוצות גיל שונות
+    
+    הפרמטרים הסטטיסטיים:
+    - קבוצת A: שיעור המרה של 12% בממוצע
+    - קבוצת B: שיעור המרה של 15% בממוצע (שיפור של 25%)
+    - התפלגות נורמלית עם רעש ריאליסטי
+    - קורלציות טבעיות בין המשתנים השונים
+    
+    החזרה:
+        DataFrame: מסגרת נתונים עם 1000 רשומות של ניסוי A/B מדומה
+    """
     np.random.seed(42)
     
     n_control = 1000
@@ -2552,11 +2924,39 @@ def generate_ab_test_data():
     return pd.concat([control_df, treatment_df], ignore_index=True)
 
 def _db_path() -> str:
-    """Path to the working SQLite DB that stores uploaded CSVs."""
+    """
+    החזרת נתיב לקובץ בסיס הנתונים SQLite העיקרי של האפליקציה
+    
+    מטרת הפונקציה:
+    - מתן נתיב קבוע לקובץ בסיס הנתונים שבו נשמרים הקבצים המועלים
+    - ריכוז ניהול הנתיב במקום אחד לקלות תחזוקה
+    - תמיכה בשמירה קבועה של נתונים בין הרצות האפליקציה
+    
+    החזרה:
+        str: נתיב לקובץ "uploaded_data.db" המשמש לאחסון הנתונים
+    """
     return "uploaded_data.db"
 
 def _run_sql(query: str) -> pd.DataFrame:
-    """Execute SQL against uploaded_data.db and return a DataFrame."""
+    """
+    ביצוע שאילתת SQL על בסיס הנתונים העיקרי של האפליקציה
+    
+    מטרת הפונקציה:
+    - ביצוע שאילתות SQL על בסיס הנתונים המקומי
+    - טיפול בחיבור ובסגירה הבטוחה של בסיס הנתונים
+    - המרה אוטומטית של תוצאות SQL למסגרת נתונים pandas
+    - בדיקת קיום בסיס הנתונים לפני ביצוע השאילתה
+    
+    פרמטרים:
+        query (str): שאילתת SQL לביצוע
+    
+    החזרה:
+        pd.DataFrame: תוצאות השאילתה כמסגרת נתונים
+        
+    זורק:
+        FileNotFoundError: אם בסיס הנתונים לא קיים (נדרש להעלות קבצים קודם)
+        Exception: במקרה של שגיאה בביצוע השאילתה
+    """
     db = _db_path()
     if not os.path.exists(db):
         raise FileNotFoundError("Database not found. Please upload CSV files first.")
@@ -2567,7 +2967,25 @@ def _run_sql(query: str) -> pd.DataFrame:
         conn.close()
 
 def _show_query_insights(df: pd.DataFrame) -> None:
-    """Compact numeric insights + quick bar chart if the result is small."""
+    """
+    הצגת תובנות קומפקטיות על תוצאות השאילתה עם ויזואליזציה מהירה
+    
+    מטרת הפונקציה:
+    - מתן סיכום מהיר של התוצאות המספריות מהשאילתה
+    - הצגת מטריקות מפתח: סכום, ממוצע, חציון, טווח
+    - יצירת תרשים עמודות מהיר אם התוצאות קטנות דיין
+    - עזרה בהבנה מהירה של התוצאות ללא צורך בניתוח עמוק
+    
+    פרמטרים:
+        df (pd.DataFrame): מסגרת הנתונים עם תוצאות השאילתה
+        
+    פלט:
+    - מטריקות מספריות למשתנים נומריים (עד 4 עמודות)
+    - תרשים עמודות אם יש פחות מ-20 שורות
+    - סיכום בסיסי של מבנה הנתונים
+    
+    החזרה: ללא - הפונקציה מציגה את התוצאות ישירות
+    """
     if df.empty:
         return
 
@@ -2612,6 +3030,55 @@ except NameError:
 
 
 # ---------------------- Helpers ----------------------
+
+def _validate_sql_query(sql: str) -> tuple[bool, str]:
+    """
+    ולידציה של שאילתת SQL למניעת SQL Injection
+    
+    מטרת הפונקציה:
+    - לוודא שהשאילתה מכילה רק פקודות בטוחות לקריאה
+    - למנוע פקודות מסוכנות שיכולות לגרום נזק
+    - להחזיר הודעת שגיאה מפורטת במקרה של בעיה
+    
+    פרמטרים:
+        sql (str): שאילתת SQL לבדיקה
+    
+    החזרה:
+        tuple: (bool - האם השאילתה בטוחה, str - הודעת שגיאה אם קיימת)
+    """
+    if not sql or not sql.strip():
+        return False, "SQL query cannot be empty"
+    
+    # הסרת רווחים ותווים מיוחדים מההתחלה והסוף
+    sql_clean = sql.strip().upper()
+    
+    # רשימת פקודות מותרות (רק לקריאה)
+    allowed_commands = ['SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'EXPLAIN']
+    
+    # רשימת פקודות אסורות (כל מה שיכול לשנות או למחוק)
+    forbidden_commands = [
+        'DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 
+        'TRUNCATE', 'REPLACE', 'EXEC', 'EXECUTE', 'CALL'
+    ]
+    
+    # בדיקה שהשאילתה מתחילה בפקודה מותרת
+    starts_with_allowed = any(sql_clean.startswith(cmd) for cmd in allowed_commands)
+    if not starts_with_allowed:
+        return False, f"SQL must start with one of: {', '.join(allowed_commands)}"
+    
+    # בדיקה שאין פקודות אסורות
+    for forbidden in forbidden_commands:
+        if forbidden in sql_clean:
+            return False, f"Forbidden SQL command detected: {forbidden}"
+    
+    # בדיקת תווים חשודים
+    suspicious_chars = [';--', '/*', '*/', 'xp_', 'sp_']
+    for char in suspicious_chars:
+        if char in sql_clean:
+            return False, f"Suspicious SQL pattern detected: {char}"
+    
+    return True, "SQL query is safe"
+
 def _sqlite_db_path() -> str:
     return "uploaded_data.db"
 
@@ -2671,6 +3138,51 @@ def _numeric_quick_insights(df: pd.DataFrame) -> None:
 
 # ---------------------- Main UI ----------------------
 def show_database():
+    """
+    הצגת ממשק עבודה עם בסיסי נתונים ושאילתות SQL
+    
+    מטרת הפונקציה:
+    - מתן כלים מתקדמים לעבודה עם בסיסי נתונים שונים
+    - תמיכה בשאילתות SQL ישירות על הנתונים שהועלו
+    - אפשרויות חיבור לבסיסי נתונים חיצוניים (PostgreSQL)
+    - יצירת טבלאות זמניות לשאילתות מורכבות
+    
+    סוגי בסיסי הנתונים הנתמכים:
+    
+    1. SQLite (Local):
+       - בסיס נתונים מקומי המותקן עם האפליקציה
+       - יצירה אוטומטית של טבלאות מהקבצים שהועלו
+       - שאילתות מהירות וקלות על נתונים קטנים-בינוניים
+       - לא דורש הגדרות חיבור נוספות
+    
+    2. PostgreSQL (Remote):
+       - חיבור לבסיסי נתונים PostgreSQL מרוחקים
+       - תמיכה בשאילתות מורכבות על נתונים גדולים
+       - אפשרויות אבטחה וחיבור מתקדמות
+       - דורש פרמטרי חיבור: שרת, משתמש, סיסמה
+    
+    3. In-Memory (Demo):
+       - בסיס נתונים זמני בזיכרון לצורכי הדגמה
+       - אידיאלי לבדיקות מהירות ולימוד SQL
+       - לא שומר נתונים בין הפעלות האפליקציה
+    
+    פיצ'רים מתקדמים:
+    - עורך SQL אינטראקטיבי עם הדגשת תחביר
+    - שאילתות מוכנות מראש לדוגמה ולמידה
+    - ניתוח אוטומטי של תוצאות השאילתות
+    - ויזואליזציה מהירה של התוצאות
+    - תובנות על ביצועי השאילתות
+    - ייצוא תוצאות לקבצים או לזיכרון האפליקציה
+    - התראות על שגיאות וטיפים לשיפור השאילתות
+    
+    דוגמאות שימוש:
+    - ניתוח נתונים עסקיים עם GROUP BY ו-aggregations
+    - זיהוי טרנדים עם Window Functions
+    - חיבור טבלאות (JOINs) לניתוח רב-מימדי
+    - סינון וחיפוש מתקדם בנתונים
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 💾 Database and SQL")
 
     backend = st.radio(
@@ -2785,13 +3297,19 @@ def show_database():
 
             sql = st.text_area("SQL Query", value=template_sql, height=160)
             if st.button("▶️ Execute (SQLite)"):
-                try:
-                    result = _sqlite_run_sql(sql)
-                    st.success("✅ Query executed successfully.")
-                    st.dataframe(result, use_container_width=True)
-                    _numeric_quick_insights(result)
-                except Exception as e:
-                    st.error(f"Query error: {e}")
+                # בדיקת אבטחה למניעת SQL Injection
+                is_safe, error_msg = _validate_sql_query(sql)
+                if not is_safe:
+                    st.error(f"🚨 **Security Error:** {error_msg}")
+                    st.warning("Only SELECT, WITH, SHOW, DESCRIBE, and EXPLAIN queries are allowed for security reasons.")
+                else:
+                    try:
+                        result = _sqlite_run_sql(sql)
+                        st.success("✅ Query executed successfully.")
+                        st.dataframe(result, use_container_width=True)
+                        _numeric_quick_insights(result)
+                    except Exception as e:
+                        st.error(f"Query error: {e}")
 
         # RIGHT: quick queries
         with right:
@@ -2920,13 +3438,19 @@ def show_database():
             default_sql = "SELECT NOW() AS server_time;"
             sql = st.text_area("SQL Query (PostgreSQL)", value=default_sql, height=160)
             if st.button("▶️ Execute (PostgreSQL)"):
-                try:
-                    result = _pg_run_sql(conn_kwargs, sql)
-                    st.success("✅ Query executed successfully.")
-                    st.dataframe(result, use_container_width=True)
-                    _numeric_quick_insights(result)
-                except Exception as e:
-                    st.error(f"Query error: {e}")
+                # בדיקת אבטחה למניעת SQL Injection  
+                is_safe, error_msg = _validate_sql_query(sql)
+                if not is_safe:
+                    st.error(f"🚨 **Security Error:** {error_msg}")
+                    st.warning("Only SELECT, WITH, SHOW, DESCRIBE, and EXPLAIN queries are allowed for security reasons.")
+                else:
+                    try:
+                        result = _pg_run_sql(conn_kwargs, sql)
+                        st.success("✅ Query executed successfully.")
+                        st.dataframe(result, use_container_width=True)
+                        _numeric_quick_insights(result)
+                    except Exception as e:
+                        st.error(f"Query error: {e}")
 
         # RIGHT: quick queries (schema-aware)
         with right:
@@ -3010,6 +3534,56 @@ def show_database():
                                "we show a simple trend over the fetched sample.")
 
 def show_reports():
+    """
+    הצגת ממשק יצירת דוחות מקיפים ומקצועיים
+    
+    מטרת הפונקציה:
+    - יצירת דוחות ניתוח מקיפים בפורמטים שונים
+    - הפקת תובנות עסקיות מובנות ומנוסחות היטב
+    - מתן אפשרויות התאמה אישית של תוכן הדוחות
+    - הכנת דוחות מותאמים לקהלי יעד שונים (מנהלים, אנליסטים, לקוחות)
+    
+    סוגי הדוחות הזמינים:
+    
+    1. Business Summary Report:
+       - סיכום עסקי ברמה גבוהה למנהלים בכירים
+       - מטריקות מפתח ומדדי ביצוע עיקריים (KPIs)
+       - המלצות אסטרטגיות מבוססות נתונים
+       - פורמט קצר וממוקד לקבלת החלטות מהירה
+    
+    2. Detailed Analysis Report:
+       - דוח מפורט וטכני לאנליסטים ומומחי נתונים
+       - ניתוח סטטיסטי מעמיק עם בדיקות השערות
+       - תרשימים ויזואליים מתקדמים
+       - מטריקות מפורטות ומסקנות מבוססות נתונים
+    
+    3. Executive Summary:
+       - דוח קצר למנהלים עם דגש על תוצאות עסקיות
+       - תמצית הממצאים החשובים ביותר
+       - המלצות לפעולה עם סדר עדיפויות
+       - עיצוב מקצועי המתאים לשיתוף עם בעלי עניין
+    
+    4. Custom Report Builder:
+       - יצירת דוח מותאם אישית על פי הצרכים
+       - בחירה גמישה של רכיבי הדוח: תרשימים, סטטיסטיקות, מתאמים
+       - אפשרות לכלול או להחריג רכיבים ספציפיים
+       - התאמה לדרישות ספציפיות של הארגון
+    
+    פיצ'רים מתקדמים בדוחות:
+    - ויזואליזציות אינטראקטיביות ומותאמות
+    - ניתוח טרנדים ותחזיות בסיסיות
+    - זיהוי ערכים חריגים ואנומליות משמעותיות
+    - ניתוח קורלציות והמלצות להמשך מחקר
+    - סיכום איכות הנתונים ואמינות התוצאות
+    - המלצות לשיפור איסוף וניהול הנתונים
+    
+    פורמטי הייצוא:
+    - הצגה ישירה באפליקציה
+    - ייצוא לקבצי טקסט והדפסה
+    - שמירה במצב הסשן להמשך עבודה
+    
+    החזרה: ללא - הפונקציה מציגה את הממשק ישירות
+    """
     st.markdown("## 📄 Report Generation")
     
     if 'data' not in st.session_state:
@@ -3090,6 +3664,27 @@ def show_reports():
             )
 
 def generate_business_summary(df):
+    """
+    יצירת דוח סיכום מתמקד בתוצאות עסקיות
+    
+    מטרת הפונקציה:
+    - יצירת סיכום עסקי מקצועי ומובן למנהלים
+    - הדגשת מטריקות מפתח ומדדי ביצוע עיקריים
+    - מתן פרשנות עסקית לתוצאות הניתוח
+    - הצעת המלצות אסטרטגיות לקבלת החלטות
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים לניתוח
+    
+    תוכן הדוח:
+    - סקירה כללית של הנתונים
+    - מטריקות מפתח ומדדי ביצוע
+    - תובנות עסקיות מרכזיות
+    - המלצות לפעולה
+    
+    החזרה:
+        str: דוח עסקי מעוצב כמחרוזת טקסט
+    """
     israel_tz = pytz.timezone('Asia/Jerusalem')
     now_israel = datetime.now(israel_tz)
     numeric_cols = df.select_dtypes(include=[np.number]).columns
@@ -3368,7 +3963,31 @@ def generate_custom_report(df, include_charts=True, include_stats=True, include_
 
 # Helper functions for creating demo data
 def create_demo_data():
-    """Create demonstration data"""
+    """
+    יצירת נתוני הדגמה מקיפים לצורכי ניסוי ולימוד
+    
+    מטרת הפונקציה:
+    - יצירת מסד נתונים סינתטי שמדמה נתונים עסקיים אמיתיים
+    - מאפשר למשתמשים לנסות את האפליקציה ללא צורך בנתונים שלהם
+    - כולל מגוון רחב של סוגי נתונים ומבנים
+    - מכיל קשרים ריאליסטיים בין המשתנים
+    
+    הנתונים כוללים:
+    - Date: תאריכים רצופים לאורך שנה
+    - Sales: נתוני מכירות בהתפלגות נורמלית
+    - Customers: מספר לקוחות בהתפלגות פואסון
+    - Revenue: הכנסות עם שונות ריאליסטית
+    - Region: אזורים גיאוגרפיים שונים
+    - Category: קטגוריות מוצרים
+    - Rating: דירוגים עם ערכים חסרים לריאליזם
+    
+    משתנים מחושבים:
+    - Conversion: אחוז המרה (לקוחות/מכירות)
+    - Average_Check: סכום ממוצע ללקוח
+    
+    החזרה:
+        DataFrame: מסגרת נתונים עם 1000 רשומות להדגמה
+    """
     np.random.seed(42)
     
     n_records = 1000
@@ -3395,7 +4014,37 @@ def create_demo_data():
     return df
 
 def create_ecommerce_data():
-    """Create e-commerce data"""
+    """
+    יצירת נתוני מסחר אלקטרוני ריאליסטיים
+    
+    מטרת הפונקציה:
+    - יצירת מסד נתונים סינתטי המדמה חנות אונליין אמיתית
+    - מתאים לניתוחים עסקיים ומחקרי שוק
+    - כולל מטריקות מפתח בתחום המסחר האלקטרוני
+    - מאפשר ניתוח התנהגות לקוחות ודפוסי רכישה
+    
+    נתוני המשתמשים והרכישות:
+    - user_id: מזהה משתמש ייחודי
+    - Age: גיל המשתמש (18-65)
+    - Gender: מין (ז/נ)
+    - Purchase_Amount: סכום הרכישה (בהתפלגות אקספוננציאלית)
+    - Category: קטגוריות מוצרים (אלקטרוניקה, בגדים, ספרים, בית)
+    - Satisfaction: דירוג שביעות רצון (1-5)
+    
+    נתוני התנהגות באתר:
+    - Time_on_Site: זמן שהיה באתר (שניות)
+    - Page_Views: מספר צפיות בעמודים
+    - Device: סוג מכשיר (מחשב, נייד, טאבלט)
+    - Source: מקור הגעה (חיפוש, רשתות חברתיות, דואר, ישיר)
+    
+    אלגוריתמים מוטמעים:
+    - צעירים נוטים יותר להשתמש במכשירים ניידים
+    - רכישות בקטגוריות מסוימות משפיעות על הסכום
+    - קשר בין זמן באתר לסכום הרכישה
+    
+    החזרה:
+        DataFrame: מסגרת נתונים עם 2000 רשומות של נתוני מסחר אלקטרוני
+    """
     np.random.seed(123)
     
     n_records = 2000
@@ -3429,7 +4078,26 @@ def create_ecommerce_data():
     return df
 
 def auto_analyze_data():
-    """Automatic analysis of loaded data"""
+    """
+    ניתוח אוטומטי של הנתונים הטעונים
+    
+    מטרת הפונקציה:
+    - ביצוע סדרת ניתוחים אוטומטיים על הנתונים הטעונים
+    - יצירת תובנות מיידיות ומעשיות ללא צורך בהתדחלות ידנית
+    - הצגת סיכום מקיף של מאפייני ואיכות הנתונים
+    - חיסכון זמן למשתמש בביצוע ניתוחים בסיסיים
+    
+    רכיבי הניתוח האוטומטי:
+    - מדדים בסיסיים: גודל מסד, אחוז ערכים חסרים, ציון איכות
+    - תובנות ועצות מקצועיות מבוססות על מבנה הנתונים
+    - סטטיסטיקות מהירות: ממוצע, שונות, מקדם שונות
+    - הדגשת משתנים רלוונטיים ביותר (עד 3 ראשונים)
+    
+    אופן הפעלה:
+    הפונקציה עובדת רק אם יש נתונים טעונים במצב הסשן
+    
+    החזרה: ללא - הפונקציה מציגה את תוצאות הניתוח ישירות
+    """
     if 'data' not in st.session_state:
         return
     
@@ -3467,7 +4135,32 @@ def auto_analyze_data():
             st.write(f"**{col}**: mean = {mean_val:.2f}, variation = {cv:.1f}%")
 
 def calculate_data_quality(df):
-    """Calculate data quality score"""
+    """
+    חישוב ציון איכות נתונים כולל
+    
+    מטרת הפונקציה:
+    - הערכת מקיפה וכמותית של איכות מסד הנתונים
+    - מתן ציון איכות קל להבנה (0-10)
+    - זיהוי בעיות איכות עיקריות המשפיעות על אמינות הניתוח
+    - מתן בסיס להחלטות על צעדי ניקוי ועיבוד
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים להערכה
+    
+    מרכיבי הציון (פנליזציות):
+    - ערכים חסרים: עד -5 נקודות (אחוז חסרים * 5)
+    - רשומות כפולות: עד -3 נקודות (אחוז כפולים * 3)
+    - מעט מדי עמודות: -1 נקודה (אם פחות מ-3 עמודות)
+    
+    סולם הציונים:
+    - 9-10: איכות מצוינת
+    - 7-8: איכות טובה
+    - 5-6: איכות סבירה
+    - 0-4: איכות רעה - דרוש ניקוי
+    
+    החזרה:
+        float: ציון איכות בין 0 ל-10
+    """
     
     score = 10.0
     
@@ -3488,7 +4181,38 @@ def calculate_data_quality(df):
     return max(0, min(10, score))
 
 def fill_missing_values(df):
-    """Fill missing values"""
+    """
+    מילוי ערכים חסרים בשיטות מתאימות לפי סוג הנתונים
+    
+    מטרת הפונקציה:
+    - טיפול אוטומטי בערכים חסרים לפי סוג הנתונים בכל עמודה
+    - שיפור איכות הנתונים לצורך ניתוחים נוספים
+    - הכנת הנתונים לאלגוריתמי למידת מכונה
+    - שמירה על המבנה והתוכן המקורי של הנתונים ככל הניתן
+    
+    פרמטרים:
+        df (DataFrame): מסגרת הנתונים עם ערכים חסרים
+    
+    שיטות המילוי לפי סוג נתונים:
+    - עמודות נומריות (float64, int64): מילוי בחציון
+      - בחירה בחציון על פני ממוצע להפחתת השפעת ערכים חריגים
+      - שמירה על ההתפלגות המקורית של הנתונים
+    - עמודות טקסט/קטגוריאליות (object): מילוי במצב (Mode)
+      - בחירה בערך השכיח ביותר לכל עמודה
+      - הפחתת השפעה על ההתפלגות הקטגוריאלית
+    - עמודות אחרות: מילוי קדמי (Forward Fill)
+      - שימוש בערך הקודם הזמין
+      - מתאים לסדרות זמן ולנתונים סדרתיים
+    
+    יתרונות השיטה:
+    - גישה מתוחכמת ומותאמת לסוג הנתונים
+    - שמירה על התפלגויות מקוריות
+    - עמידות בפני ערכים חריגים
+    - תוצאות מהימנות לניתוחים סטטיסטיים
+    
+    החזרה:
+        DataFrame: מסגרת נתונים מעודכנת ללא ערכים חסרים
+    """
     
     df_filled = df.copy()
     
@@ -3510,7 +4234,26 @@ def fill_missing_values(df):
     return df_filled
 
 def show_quick_summary():
-    """Show quick data summary in sidebar action"""
+    """
+    הצגת סיכום מהיר של הנתונים בפעולה מהירה
+    
+    מטרת הפונקציה:
+    - מתן סקירה מהירה ומוקדת של מאפייני הנתונים הבסיסיים
+    - חיסכון בזמן למשתמש ללא צורך בניווט מורכב
+    - עזרה בהבנת המבנה והאיכות של הנתונים
+    - מתן בסיס להחלטה על ניתוחים נוספים
+    
+    תוכן הסיכום:
+    - מטריקות בסיסיות: מספר רשומות, עמודות, עמודות נומריות
+    - אחוז ערכים חסרים כולל
+    - סטטיסטיקות מהירות ל-3 העמודות הנומריות הראשונות
+    - ממוצע (μ) וסטיית תקן (σ) לכל עמודה
+    
+    אופן הפעלה:
+    הפונקציה עובדת רק אם יש נתונים טעונים במצב הסשן
+    
+    החזרה: ללא - הפונקציה מציגה את הסיכום ישירות
+    """
     if 'data' not in st.session_state:
         return
     
@@ -3538,7 +4281,33 @@ def show_quick_summary():
             st.write(f"• {col}: μ={mean_val:.2f}, σ={std_val:.2f}")
 
 def show_quick_correlation():
-    """Show quick correlation analysis"""
+    """
+    הצגת ניתוח מתאמים מהיר
+    
+    מטרת הפונקציה:
+    - זיהוי מהיר של הקשרים החזקים בין המשתנים הנומריים
+    - מתן צורת בין לקשרים המעניינים ביותר בנתונים
+    - זיהוי דפוסים ותלויות פוטנציאליות
+    - עזרה בבחירת משתנים לניתוחים נוספים
+    
+    דרישות הפעלה:
+    - לפחות 2 עמודות נומריות במסד הנתונים
+    - נתונים טעונים במצב הסשן
+    
+    תוכן הניתוח:
+    - חישוב מטריצת מתאמי פירסון לכל המשתנים הנומריים
+    - זיהוי והצגת המתאמים החזקים ביותר (|ר| > 0.5)
+    - מיין הקשר: חיובי (ישיר) או שלילי (הפוך)
+    - עוצמת הקשר בערכים נומריים (-1 עד +1)
+    
+    פרשנות התוצאות:
+    - מתאם > 0.7: קשר חזק מאוד
+    - מתאם 0.5-0.7: קשר חזק
+    - מתאם 0.3-0.5: קשר בינוני
+    - מתאם < 0.3: קשר חלש
+    
+    החזרה: ללא - הפונקציה מציגה את הניתוח ישירות
+    """
     if 'data' not in st.session_state:
         return
     
@@ -3566,7 +4335,38 @@ def show_quick_correlation():
             st.write(f"{i+1}. {var1} ↔ {var2}: {corr:.3f} ({strength})")
 
 def show_quick_3d():
-    """Show quick 3D visualization"""
+    """
+    הצגת ויזואליזציה תלת-מימדית מהירה
+    
+    מטרת הפונקציה:
+    - יצירת תרשים פיזור תלת-מימדי אינטראקטיבי של הנתונים
+    - מתן אפשרות לחקר קשרים מורכבים בין שלושה משתנים נומריים
+    - הצגת תובנות ויזואליות שקשה לקבל בתרשימים דו-מימדיים
+    - עזרה בזיהוי קבוצות, דפוסים וחריגות במרחב התלת-מימדי
+    
+    דרישות הפעלה:
+    - לפחות 3 עמודות נומריות במסד הנתונים
+    - נתונים טעונים במצב הסשן
+    
+    מאפייני התרשים:
+    - צירי X, Y, Z: שלושת המשתנים הנומריים הראשונים
+    - נקודות אינטראקטיביות הניתנות לזום וסיבוב
+    - צבעים ורדיפנציאליים לקבוצות אם קיימים משתנים קטגוריאליים
+    - כלים לניווט תלת-מימדי: זום, סיבוב, הזזה
+    
+    יתרונות הויזואליזציה התלת-מימדית:
+    - חשיפת קשרים נסתרים שלא נראים בתרשימים דו-מימדיים
+    - זיהוי קבוצות (clusters) במרחב תלת-מימדי
+    - הבנת התפלגות הנתונים במרחב רב-מימדי
+    - זיהוי ערכים חריגים במרחב התלת-מימדי
+    
+    פלטפורמת התרשים:
+    - שימוש בספריית Plotly לאינטראקטיביות מלאה
+    - תמיכה בכלי ניווט מתקדמים
+    - אפשרויות ייצוא והדפסה של התרשים
+    
+    החזרה: ללא - הפונקציה מציגה את התרשים ישירות
+    """
     if 'data' not in st.session_state:
         return
     
@@ -3609,3 +4409,4 @@ def show_quick_3d():
 # Run application
 if __name__ == "__main__":
     main()
+    # אין להחזיר דבר בסוף הסקריפט
