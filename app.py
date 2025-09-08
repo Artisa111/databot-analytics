@@ -686,7 +686,7 @@ def show_dashboard():
         
         with filter_col1:
             if len(text_cols) > 0:
-                selected_category = st.selectbox("Filter by category", ["All"] + text_cols)
+                selected_category = st.selectbox("Filter by category", ["All"] + list(text_cols))
                 if selected_category != "All":
                     category_values = st.multiselect(
                         f"Select {selected_category} values",
@@ -1471,7 +1471,7 @@ def show_charts():
         with col2:
             y_col = st.selectbox("Y-axis", [col for col in numeric_cols if col != x_col])
         with col3:
-            color_col = st.selectbox("Color by", ["None"] + text_cols)
+            color_col = st.selectbox("Color by", ["None"] + list(text_cols))
         
         if color_col == "None":
             fig = px.scatter(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
@@ -1538,7 +1538,7 @@ def show_charts():
         with col1:
             num_col = st.selectbox("Numeric column", numeric_cols)
         with col2:
-            group_col = st.selectbox("Grouping", ["None"] + text_cols)
+            group_col = st.selectbox("Grouping", ["None"] + list(text_cols))
         
         if group_col == "None":
             fig = px.box(df, y=num_col, title=f"Distribution of {num_col}")
