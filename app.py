@@ -214,7 +214,7 @@ st.markdown("""
 # ========================================================================
 def main():
     """
-    פונקציית הראשית של יישום DataBot Analytics Pro
+    פונקציית הראשית של יישום DataBot Analytics 
     
     מטרת הפונקציה:
     - הגדרת ממשק המשתמש הראשי
@@ -248,7 +248,7 @@ def main():
                 st.success("✅ התחברת בהצלחה!")
     
     # הצגת כותרת ראשית מעוצבת
-    st.markdown('<h1 class="main-header">🚀 DataBot Analytics Pro</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🚀 DataBot Analytics</h1>', unsafe_allow_html=True)
     
     # ========================================================================
     #                           הגדרות מכשיר - אוטומטי לפי גודל מסך
