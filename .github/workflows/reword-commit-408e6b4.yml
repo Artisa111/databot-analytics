@@ -1,0 +1,51 @@
+name: Rewrite commit message 408e6b4
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main with full history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create backup branch
+        run: |
+          set -e
+          git branch backup/pre-reword-${{ github.run_id }} HEAD
+          git push origin backup/pre-reword-${{ github.run_id }}
+
+      - name: Rewrite commit message via filter-branch
+        run: |
+          set -e
+          # Rewrite only the target commit message on main
+          git checkout main
+          export TARGET_SHA="408e6b451e6f61d1786b9e83c970a906858e9050"
+          export NEW_MSG="Replace comments and print messages in main.py with English"
+          git filter-branch -f --msg-filter '
+          if [ "$GIT_COMMIT" = "'$TARGET_SHA'" ]; then
+            echo "$NEW_MSG"
+          else
+            cat
+          fi
+          ' main
+
+      - name: Force-push rewritten history to main (with lease)
+        run: |
+          set -e
+          git push --force-with-lease origin main:main
+
+      - name: Show last commits
+        run: git log --oneline -n 20
